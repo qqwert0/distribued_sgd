@@ -48,9 +48,9 @@ module hbm_dispatch
 
     //banks = 8, bits_per_bank=64...
     //------------------Output: disptach resp data to a ofeach bank---------------//
-    output  reg [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] dispatch_axb_a_data, 
-    output  reg                                        dispatch_axb_a_wr_en, 
-    input   wire                                       dispatch_axb_a_almost_full, //only one of them is used to control...
+    output  reg [(`NUM_BITS_PER_BANK*`NUM_OF_BANKS/2)-1:0]  dispatch_axb_a_data, 
+    output  reg                                             dispatch_axb_a_wr_en, 
+    input   wire                                            dispatch_axb_a_almost_full, //only one of them is used to control...
 
     //------------------Output: disptach resp data to b of each bank---------------//
     output  reg                 [32*`NUM_OF_BANKS-1:0] dispatch_axb_b_data, 
@@ -67,6 +67,9 @@ module hbm_dispatch
     wire [255:0]                           um_rx_data;
     wire                                   um_rx_rd_valid;
     wire                                   um_rx_rd_ready;
+
+    reg [(`NUM_BITS_PER_BANK*`NUM_OF_BANKS/2)-1:0]  dispatch_axb_a_data_pre1,dispatch_axb_a_data_pre2; 
+    reg                                             dispatch_axb_a_wr_en_pre1,dispatch_axb_a_wr_en_pre2;    
 
 assign um_rx_rd_tag         = m_axi_RID;
 assign um_rx_data           = m_axi_RDATA;
@@ -204,14 +207,22 @@ always @(posedge clk)
 begin 
     if(~rst_n) 
     begin
-        dispatch_axb_a_wr_en      <= 1'b0 ;        
+        dispatch_axb_a_wr_en_pre1      <= 1'b0 ;        
     end 
     else 
     begin  //I do not know whether this implementation works or not...
-        dispatch_axb_a_wr_en      <= um_rx_rd_valid & tmp_ready & (um_rx_rd_tag == `MEM_RD_A_TAG);
-        dispatch_axb_a_data       <= um_rx_data;
+        dispatch_axb_a_wr_en_pre1      <= um_rx_rd_valid & tmp_ready & (um_rx_rd_tag == `MEM_RD_A_TAG);
+        dispatch_axb_a_data_pre1       <= um_rx_data;
     end
 end
+
+always @(posedge clk) begin 
+    dispatch_axb_a_wr_en_pre2           <= dispatch_axb_a_wr_en_pre1;
+    dispatch_axb_a_wr_en                <= dispatch_axb_a_wr_en_pre2;
+    dispatch_axb_a_data_pre2            <= dispatch_axb_a_data_pre1;
+    dispatch_axb_a_data                 <= dispatch_axb_a_data_pre2;
+end
+
 //------------------bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb---------------//
 always @(posedge clk) 
 begin 
