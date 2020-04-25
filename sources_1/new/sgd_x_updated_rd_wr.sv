@@ -34,11 +34,11 @@ module sgd_x_updated_rd_wr #( parameter DATA_WIDTH_IN      = 4 ,
     input   wire                                   acc_gradient_valid[`NUM_BITS_PER_BANK-1:0],
 
     ///////////////////rd part of x_updated//////////////////////
-    output  reg                [`X_BIT_DEPTH-1:0]  x_updated_rd_addr,
+    output  reg            [`DIS_X_BIT_DEPTH-1:0]  x_updated_rd_addr,
     input             [`NUM_BITS_PER_BANK*32-1:0]  x_updated_rd_data,
     ///////////////////wr part of x_updated//////////////////////
     output  reg                                    x_updated_wr_en,     
-    output  reg                [`X_BIT_DEPTH-1:0]  x_updated_wr_addr,
+    output  reg            [`DIS_X_BIT_DEPTH-1:0]  x_updated_wr_addr,
     output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_updated_wr_data
 );
 
@@ -59,7 +59,7 @@ always @(posedge clk)
 begin 
     if(~rst_n)
     begin
-        x_updated_rd_addr         <= { `X_BIT_DEPTH{1'b0} };
+        x_updated_rd_addr         <= { `DIS_X_BIT_DEPTH{1'b0} };
     end 
     else 
     begin
@@ -67,7 +67,7 @@ begin
         begin
             x_updated_rd_addr     <= x_updated_rd_addr + 1'b1;
             if (x_updated_rd_addr == main_counter_minus_1)
-                x_updated_rd_addr <= { `X_BIT_DEPTH{1'b0} };    
+                x_updated_rd_addr <= { `DIS_X_BIT_DEPTH{1'b0} };    
         end
     end 
 end
@@ -76,7 +76,7 @@ end
 genvar i; 
 //////////////////////////////////1st cycle//////////////////////////////////
 reg signed             [31:0] acc_gradient_reg[`NUM_BITS_PER_BANK-1:0];
-reg        [`X_BIT_DEPTH-1:0] x_updated_rd_addr_reg;
+reg        [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_reg;
 reg                           x_updated_rd_valid_en_reg;
     always @(posedge clk) 
     begin 
@@ -95,40 +95,78 @@ endgenerate
 
 //////////////////////////////////2nd cycle//////////////////////////////////
 reg signed             [31:0] acc_gradient_reg2[`NUM_BITS_PER_BANK-1:0];
-wire signed            [31:0] x_update_rd_data_signed_2[`NUM_BITS_PER_BANK-1:0];
-reg        [`X_BIT_DEPTH-1:0] x_updated_rd_addr_reg2;
+reg        [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_reg2;
 reg                           x_updated_rd_valid_en_reg2;
     always @(posedge clk) 
     begin 
-        x_updated_rd_addr_reg2         <= x_updated_rd_addr_reg;
-        x_updated_rd_valid_en_reg2     <= x_updated_rd_valid_en_reg;  
+        x_updated_rd_addr_reg2          <= x_updated_rd_addr_reg;
+        x_updated_rd_valid_en_reg2      <= x_updated_rd_valid_en_reg;  
     end
 generate 
 for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) 
 begin: second_cycle
-    assign x_update_rd_data_signed_2[i] = x_updated_rd_data[(i+1)*32-1: i*32];//data from bram.
     always @(posedge clk) 
     begin 
-        acc_gradient_reg2[i]           <= acc_gradient_reg[i];  
+        acc_gradient_reg2[i]            <= acc_gradient_reg[i];  
     end
 end
 endgenerate
 
-//////////////////////////////////3-th cycle//////////////////////////////////
-reg        [`X_BIT_DEPTH-1:0] x_updated_rd_addr_reg3;
-reg signed             [31:0] x_update_wr_data_signed_reg3[`NUM_BITS_PER_BANK-1:0];
+//////////////////////////////////3rd cycle//////////////////////////////////
+reg signed             [31:0] acc_gradient_reg3[`NUM_BITS_PER_BANK-1:0];
+reg        [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_reg3;
 reg                           x_updated_rd_valid_en_reg3;
     always @(posedge clk) 
     begin 
-        x_updated_rd_addr_reg3         <= x_updated_rd_addr_reg2;  
-        x_updated_rd_valid_en_reg3     <= x_updated_rd_valid_en_reg2;  
+        x_updated_rd_addr_reg3          <= x_updated_rd_addr_reg2;
+        x_updated_rd_valid_en_reg3      <= x_updated_rd_valid_en_reg2;  
     end
 generate 
 for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) 
 begin: third_cycle
     always @(posedge clk) 
     begin 
-        x_update_wr_data_signed_reg3[i]<= x_update_rd_data_signed_2[i] - acc_gradient_reg2[i]; 
+        acc_gradient_reg3[i]            <= acc_gradient_reg2[i];  
+    end
+end
+endgenerate
+
+//////////////////////////////////4th cycle//////////////////////////////////
+reg signed             [31:0] acc_gradient_reg4[`NUM_BITS_PER_BANK-1:0];
+wire signed            [31:0] x_update_rd_data_signed_2[`NUM_BITS_PER_BANK-1:0];
+reg        [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_reg4;
+reg                           x_updated_rd_valid_en_reg4;
+    always @(posedge clk) 
+    begin 
+        x_updated_rd_addr_reg4         <= x_updated_rd_addr_reg3;
+        x_updated_rd_valid_en_reg4     <= x_updated_rd_valid_en_reg3;  
+    end
+generate 
+for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) 
+begin: fourth_cycle
+    assign x_update_rd_data_signed_2[i] = x_updated_rd_data[(i+1)*32-1: i*32];//data from bram.
+    always @(posedge clk) 
+    begin 
+        acc_gradient_reg4[i]           <= acc_gradient_reg3[i];  
+    end
+end
+endgenerate
+
+//////////////////////////////////5-th cycle//////////////////////////////////
+reg        [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_reg5;
+reg signed             [31:0] x_update_wr_data_signed_reg3[`NUM_BITS_PER_BANK-1:0];
+reg                           x_updated_rd_valid_en_reg5;
+    always @(posedge clk) 
+    begin 
+        x_updated_rd_addr_reg5         <= x_updated_rd_addr_reg4;  
+        x_updated_rd_valid_en_reg5     <= x_updated_rd_valid_en_reg4;  
+    end
+generate 
+for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) 
+begin: fifth_cycle
+    always @(posedge clk) 
+    begin 
+        x_update_wr_data_signed_reg3[i]<= x_update_rd_data_signed_2[i] - acc_gradient_reg4[i]; 
     end
 end
 endgenerate
@@ -139,8 +177,8 @@ endgenerate
 //    assign x_updated_wr_en                     = x_updated_rd_valid_en_reg3;
     always @(posedge clk) 
     begin 
-        x_updated_wr_addr    <= x_updated_rd_addr_reg3; 
-        x_updated_wr_en      <= x_updated_rd_valid_en_reg3;
+        x_updated_wr_addr    <= x_updated_rd_addr_reg5; 
+        x_updated_wr_en      <= x_updated_rd_valid_en_reg5;
     end
 generate 
 for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) 

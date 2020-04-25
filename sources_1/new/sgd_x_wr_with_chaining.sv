@@ -31,7 +31,7 @@ module sgd_x_wr #( parameter DATA_WIDTH_IN      = 4 ,
     input   wire                                   rst_n,
     //--------------------------Begin/Stop-----------------------------//
 
-    output  wire [31:0]                            state_counters_x_wr, 
+    output  wire [31:0]                            state_counters_x_wr,
     input   wire                                   started,
     input   wire                            [31:0] mini_batch_size,
     input   wire                            [31:0] dimension,
@@ -50,12 +50,12 @@ module sgd_x_wr #( parameter DATA_WIDTH_IN      = 4 ,
 
     ///////////////////wr part of x_updated//////////////////////
     input   wire                                   x_updated_wr_en,     
-    input   wire               [`X_BIT_DEPTH-1:0]  x_updated_wr_addr,
+    input   wire               [`DIS_X_BIT_DEPTH-1:0]  x_updated_wr_addr,
     input   wire      [`NUM_BITS_PER_BANK*32-1:0]  x_updated_wr_data,
 
     ///////////////////wr part of x//////////////////////
     output  reg                                    x_wr_en,     
-    output  reg                [`X_BIT_DEPTH-1:0]  x_wr_addr,
+    output  reg                [`DIS_X_BIT_DEPTH-1:0]  x_wr_addr,
     output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_wr_data
 
 );
@@ -110,11 +110,11 @@ end
 
 
 reg                                    x_wr_en_pre;     
-reg                [`X_BIT_DEPTH-1:0]  x_wr_addr_pre;
+reg                [`DIS_X_BIT_DEPTH-1:0]  x_wr_addr_pre;
 reg       [`NUM_BITS_PER_BANK*32-1:0]  x_wr_data_pre;
 
 reg                                    x_wr_en_pre2;     
-reg                [`X_BIT_DEPTH-1:0]  x_wr_addr_pre2;
+reg                [`DIS_X_BIT_DEPTH-1:0]  x_wr_addr_pre2;
 reg       [`NUM_BITS_PER_BANK*32-1:0]  x_wr_data_pre2;
 
 wire                    x_updated_wr_en_is_coming;

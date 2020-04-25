@@ -325,20 +325,31 @@ module hbm_interface(
     );  
 
 
-    wire [`ENGINE_NUM-1:0][255:0]   dispatch_axb_a_data;
-    wire [`ENGINE_NUM-1:0][255:0]   dispatch_axb_b_data;
-    wire [`ENGINE_NUM-1:0]          dispatch_axb_a_wr_en;
-    wire [`ENGINE_NUM-1:0]          dispatch_axb_b_wr_en;
-    wire [`ENGINE_NUM-1:0]          dispatch_axb_a_almost_full;
-    wire                            almost_full;
+    wire [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_in;
+    wire [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_out;
+    reg  [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_o;
+    wire [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en;
+    reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_rd_en;
+    wire [`ENGINE_NUM*2-1:0]          hbm_read_a_almost_full;
+    wire [`ENGINE_NUM*2-1:0]          hbm_read_a_empty;
+    reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_valid_o;
+    wire [`ENGINE_NUM*2-1:0]          hbm_read_a_valid;
+
+
+    reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data;
+    wire [`ENGINE_NUM*2-1:0][255:0]   dispatch_axb_b_data;
+    reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en;
+    wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
+    wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
+    wire                              almost_full;
 
 
     reg [31:0]                      data_length;
-    reg [`ENGINE_NUM-1:0][31:0]     rd_sum_cnt;
-    reg [`ENGINE_NUM-1:0][31:0]     rd_addr_cnt;
-    reg [`ENGINE_NUM-1:0][31:0]     wr_a_counter;
-    reg [`ENGINE_NUM-1:0][31:0]     wr_b_counter;
-    reg [`ENGINE_NUM-1:0][31:0]     rd_addr_sum_cnt;
+    reg [`ENGINE_NUM*2-1:0][31:0]     rd_sum_cnt;
+    reg [`ENGINE_NUM*2-1:0][31:0]     rd_addr_cnt;
+    reg [`ENGINE_NUM*2-1:0][31:0]     wr_a_counter;
+    reg [`ENGINE_NUM*2-1:0][31:0]     wr_b_counter;
+    reg [`ENGINE_NUM*2-1:0][31:0]     rd_addr_sum_cnt;
 
     //generate end generate
     genvar i;
@@ -351,7 +362,7 @@ module hbm_interface(
         .DATA_WIDTH       (256),  // 512-bit for DDR4
         .PARAMS_BITS      (256),  // parameter bits from PCIe
         .ID_WIDTH         (6)     //fixme,
-    )hbm_read_inst(
+    )hbm_read0_inst(
         .hbm_clk(hbm_clk),
         .hbm_aresetn(hbm_rstn),
 
@@ -366,35 +377,79 @@ module hbm_interface(
         .number_of_samples(number_of_samples),
         .dimension(dimension),
         .number_of_bits(number_of_bits), 
-        .engine_id(i),
+        .engine_id(i*2),
         .araddr_stride(array_length),
         //---------------------Memory Inferface----------------------------//
 
         //Read Address (Output)  
-        .m_axi_ARVALID(hbm_axi[i].arvalid) , //rd address valid
-        .m_axi_ARADDR(hbm_axi[i].araddr)  , //rd byte address
-        .m_axi_ARID(hbm_axi[i].arid)    , //rd address id
-        .m_axi_ARLEN(hbm_axi[i].arlen)  , //rd burst=awlen+1,
-        .m_axi_ARSIZE(hbm_axi[i].arsize)  , //rd 3'b101, 32B
-        .m_axi_ARBURST(hbm_axi[i].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
-        .m_axi_ARLOCK(hbm_axi[i].arlock)  , //rd no
-        .m_axi_ARCACHE(hbm_axi[i].arcache) , //rd no
-        .m_axi_ARPROT(hbm_axi[i].arprot)  , //rd no
-        .m_axi_ARQOS(hbm_axi[i].arqos)   , //rd no
-        .m_axi_ARREGION(hbm_axi[i].arregion), //rd no
+        .m_axi_ARVALID(hbm_axi[i*2].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*2].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*2].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*2].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*2].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*2].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*2].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*2].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*2].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*2].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*2].arregion), //rd no
         .m_axi_ARUSER()  ,
-        .m_axi_ARREADY(hbm_axi[i].arready),  //rd ready to accept address.
-        .rd_sum_cnt(rd_addr_sum_cnt[i]),
-        .rd_addr_cnt(rd_addr_cnt[i])
+        .m_axi_ARREADY(hbm_axi[i*2].arready),  //rd ready to accept address.
+        .rd_sum_cnt(),
+        .rd_addr_cnt()
 
         );
+
+    hbm_read#(
+        .ADDR_WIDTH       (33) ,  // 8G-->33 bits
+        .DATA_WIDTH       (256),  // 512-bit for DDR4
+        .PARAMS_BITS      (256),  // parameter bits from PCIe
+        .ID_WIDTH         (6)     //fixme,
+    )hbm_read1_inst(
+        .hbm_clk(hbm_clk),
+        .hbm_aresetn(hbm_rstn),
+
+        //--------------------------Begin/Stop-----------------------------//
+        .start(hbm_write_done),
+        .mem_op_done(),
+
+        //---------Input: Parameters (where, how many) from the root module-------//
+        .addr_a(0),
+        .addr_b(33'h8000000),
+        .number_of_epochs(number_of_epochs),
+        .number_of_samples(number_of_samples),
+        .dimension(dimension),
+        .number_of_bits(number_of_bits), 
+        .engine_id(i*2+1),
+        .araddr_stride(array_length),
+        //---------------------Memory Inferface----------------------------//
+
+        //Read Address (Output)  
+        .m_axi_ARVALID(hbm_axi[i*2+1].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*2+1].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*2+1].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*2+1].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*2+1].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*2+1].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*2+1].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*2+1].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*2+1].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*2+1].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*2+1].arregion), //rd no
+        .m_axi_ARUSER()  ,
+        .m_axi_ARREADY(hbm_axi[i*2+1].arready),  //rd ready to accept address.
+        .rd_sum_cnt(),
+        .rd_addr_cnt()
+
+        );
+
 
 
     hbm_dispatch 
     #(
         .DATA_WIDTH       (256),  // 512-bit for DDR4
         .ID_WIDTH         (6)     //fixme,
-    )hbm_dispatch_inst(
+    )hbm_dispatch0_inst(
         .clk(hbm_clk),
         .rst_n(hbm_rstn),
         //--------------------------Begin/Stop-----------------------------//
@@ -405,30 +460,128 @@ module hbm_interface(
 
         //---------------------Input: External Memory rd response-----------------//
         //Read Data (input)
-        .m_axi_RVALID(hbm_axi[i].rvalid)  , //rd data valid
-        .m_axi_RDATA(hbm_axi[i].rdata)   , //rd data 
-        .m_axi_RLAST(hbm_axi[i].rlast)   , //rd data last
-        .m_axi_RID(hbm_axi[i].rid)     , //rd data id
-        .m_axi_RRESP(hbm_axi[i].rresp)   , //rd data status. 
-        .m_axi_RREADY(hbm_axi[i].rready)  ,
-
-
+        .m_axi_RVALID(hbm_axi[i*2].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*2].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*2].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*2].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*2].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*2].rready)  ,
 
         //banks = 8, bits_per_bank=64...
         //------------------Output: disptach resp data to a ofeach bank---------------//
-        . dispatch_axb_a_data(dispatch_axb_a_data[i]), 
-        . dispatch_axb_a_wr_en(dispatch_axb_a_wr_en[i]), 
-        . dispatch_axb_a_almost_full(dispatch_axb_a_almost_full), //only one of them is used to control...
+        . dispatch_axb_a_data(hbm_read_a_data_in[i*2]), 
+        . dispatch_axb_a_wr_en(hbm_read_a_wr_en[i*2]), 
+        . dispatch_axb_a_almost_full(hbm_read_a_almost_full[i*2]), //only one of them is used to control...
 
         //------------------Output: disptach resp data to b of each bank---------------//
-        .dispatch_axb_b_data(dispatch_axb_b_data[i]), 
-        .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i]),
+        .dispatch_axb_b_data(dispatch_axb_b_data[i*2]), 
+        .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2]),
         //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
-        .wr_a_counter(wr_a_counter[i]),
- 	    .wr_b_counter(wr_b_counter[i]), 
- 	    .rd_sum_cnt(rd_sum_cnt[i])
-
+        .wr_a_counter(),
+ 	    .wr_b_counter(), 
+ 	    .rd_sum_cnt()
     );
+    
+    
+    hbm_dispatch 
+    #(
+        .DATA_WIDTH       (256),  // 512-bit for DDR4
+        .ID_WIDTH         (6)     //fixme,
+    )hbm_dispatch1_inst(
+        .clk(hbm_clk),
+        .rst_n(hbm_rstn),
+        //--------------------------Begin/Stop-----------------------------//
+        .start(hbm_write_done),
+        .data_length(data_length),
+        
+        .state_counters_dispatch(),
+
+        //---------------------Input: External Memory rd response-----------------//
+        //Read Data (input)
+        .m_axi_RVALID(hbm_axi[i*2+1].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*2+1].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*2+1].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*2+1].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*2+1].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*2+1].rready)  ,
+
+        //banks = 8, bits_per_bank=64...
+        //------------------Output: disptach resp data to a ofeach bank---------------//
+        . dispatch_axb_a_data(hbm_read_a_data_in[i*2+1]), 
+        . dispatch_axb_a_wr_en(hbm_read_a_wr_en[i*2+1]), 
+        . dispatch_axb_a_almost_full(hbm_read_a_almost_full[i*2+1]), //only one of them is used to control...
+
+        //------------------Output: disptach resp data to b of each bank---------------//
+        .dispatch_axb_b_data(dispatch_axb_b_data[i*2+1]), 
+        .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2+1]),
+        //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
+        .wr_a_counter(),
+ 	    .wr_b_counter(), 
+ 	    .rd_sum_cnt()
+    );  
+    
+    distram_fifo  #( .FIFO_WIDTH      (     256       ), 
+                    .FIFO_DEPTH_BITS (       6        ) 
+    ) inst_a0_fifo (
+        .clk        (hbm_clk),
+        .reset_n    (hbm_rstn),
+
+        //Writing side. from sgd_dispatch...
+        .we         ( hbm_read_a_wr_en[i*2]    ),
+        .din        ( hbm_read_a_data_in[i*2]  ),
+        .almostfull ( hbm_read_a_almost_full[i*2]    ), 
+
+        //reading side.....
+        .re         (hbm_read_a_rd_en[i*2]     ),
+        .dout       (hbm_read_a_data_out[i*2]   ),
+        .valid      (hbm_read_a_valid[i*2]),
+        .empty      (hbm_read_a_empty[i*2]),
+        .count      (                   )
+    );  
+    
+    distram_fifo  #( .FIFO_WIDTH      (     256       ), 
+                    .FIFO_DEPTH_BITS (       6        ) 
+    ) inst_a1_fifo (
+        .clk        (hbm_clk),
+        .reset_n    (hbm_rstn),
+
+        //Writing side. from sgd_dispatch...
+        .we         ( hbm_read_a_wr_en[i*2+1]    ),
+        .din        ( hbm_read_a_data_in[i*2+1]  ),
+        .almostfull ( hbm_read_a_almost_full[i*2+1]    ), 
+
+        //reading side.....
+        .re         (hbm_read_a_rd_en[i*2+1]     ),
+        .dout       (hbm_read_a_data_out[i*2+1]   ),
+        .valid      (hbm_read_a_valid[i*2+1]),
+        .empty      (hbm_read_a_empty[i*2+1]),
+        .count      (                   )
+    );
+
+    always @(posedge hbm_clk) begin
+        hbm_read_a_valid_o[i*2]         <= hbm_read_a_valid[i*2];
+        hbm_read_a_valid_o[i*2+1]       <= hbm_read_a_valid[i*2+1];
+        hbm_read_a_data_o[i*2]          <= hbm_read_a_data_out[i*2];
+        hbm_read_a_data_o[i*2+1]        <= hbm_read_a_data_out[i*2+1];
+    end     
+    
+    always @(posedge hbm_clk) begin
+        dispatch_axb_a_data[i]          <= {hbm_read_a_data_o[i*2+1],hbm_read_a_data_o[i*2]};
+        dispatch_axb_a_wr_en[i]         <= hbm_read_a_valid_o[i*2];
+    end       
+
+    always @(posedge hbm_clk) begin
+        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full[i])) begin
+            hbm_read_a_rd_en[i*2]       <= 1'b1;
+            hbm_read_a_rd_en[i*2+1]     <= 1'b1;
+        end
+        else begin
+            hbm_read_a_rd_en[i*2]       <= 1'b0;
+            hbm_read_a_rd_en[i*2+1]     <= 1'b0;
+        end            
+    end 
+
+        
 
     end
     endgenerate
@@ -489,8 +642,8 @@ sgd_top_bw #(
     .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-    .dispatch_axb_b_data                (dispatch_axb_b_data[`ENGINE_NUM/2]),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en[`ENGINE_NUM/2]),
+    .dispatch_axb_b_data                (dispatch_axb_b_data[`ENGINE_NUM]),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en[`ENGINE_NUM]),
     .dispatch_axb_b_almost_full         (),
     //---------------------Memory Inferface:write----------------------------//
     //cmd

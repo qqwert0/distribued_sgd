@@ -61,3 +61,9 @@ set_false_path -from [get_clocks {dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst
 set_false_path -from [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
 set_false_path -from [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks {dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/gt_wizard.gtwizard_top_i/xdma_0_pcie4c_ip_gt_i/inst/gen_gtwizard_gtye4_top.xdma_0_pcie4c_ip_gt_gtwizard_gtye4_inst/gen_gtwizard_gtye4.gen_channel_container[24].gen_enabled_channel.gtye4_channel_wrapper_inst/channel_inst/gtye4_channel_gen.gen_gtye4_channel_inst[0].GTYE4_CHANNEL_PRIM_INST/TXOUTCLK}]
 
+set_false_path -from [get_ports sys_rst_n]
+#set_false_path -through [get_pins [list dma_driver_inst/pcie_aresetn inst_hbm_driver/hbm_rstn]]
+set_false_path -from [get_cells inst_hbm_interface/sgd_top_bw_inst/rst_n_reg_reg]
+set_false_path -from [get_cells inst_hbm_driver/hbm_rstn_reg]
+set_false_path -from [get_cells dma_driver_inst/pcie_aresetn_reg]
+

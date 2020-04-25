@@ -36,7 +36,7 @@ module hbm_send_back(
     input wire [31:0]           data_length,
 
     //
-    input wire [255:0]          back_data,
+    input wire [511:0]          back_data,
     input wire                  back_valid,
     output wire                 almost_full
 
@@ -66,7 +66,7 @@ module hbm_send_back(
     assign m_axis_dma_write_data.valid      = fifo_rd_en;
 
 
-    reg [255:0]                 fifo_data_in;
+    reg [511:0]                 fifo_data_in;
     reg                         fifo_wr_en;
     wire                        fifo_empty;
     wire [511:0]                fifo_data_out;

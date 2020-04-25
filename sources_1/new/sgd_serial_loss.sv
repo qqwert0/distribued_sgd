@@ -47,19 +47,24 @@ module sgd_serial_loss (
 ////////////////////////////////////////fifo for a////////////////////////////////////////
 //Warning: Make sure the buffer_b has the enough space for the 
 
-reg    [`ENGINE_NUM-1:0]                       buffer_a_wr_en;     //rd
-reg    [`ENGINE_NUM-1:0][32*`NUM_OF_BANKS-1:0] buffer_a_wr_data;   //rd_data
+reg     [`ENGINE_NUM-1:0]                       buffer_a_wr_en;     //rd
+reg     [`ENGINE_NUM-1:0][32*`NUM_OF_BANKS-1:0] buffer_a_wr_data;   //rd_data
 
-wire   [`ENGINE_NUM-1:0]                       buffer_a_rd_en;     //rd
-wire   [`ENGINE_NUM-1:0][32*`NUM_OF_BANKS-1:0] buffer_a_rd_data;   //rd_data
-wire   [`ENGINE_NUM-1:0]                       buffer_a_data_valid;
-wire   [`ENGINE_NUM-1:0]                       buffer_a_data_empty;  
+reg     [`ENGINE_NUM-1:0]                       buffer_a_rd_en,buffer_a_rd_en_r1,buffer_a_rd_en_r2;     //rd
+wire    [`ENGINE_NUM-1:0][32*`NUM_OF_BANKS-1:0] buffer_a_rd_data;   //rd_data
+wire    [`ENGINE_NUM-1:0]                       buffer_a_data_valid;
+wire    [`ENGINE_NUM-1:0]                       buffer_a_data_empty;
+reg     [`ENGINE_NUM-1:0]                       buffer_a_data_empty_r1,buffer_a_data_empty_r2;  
+reg     [`ENGINE_NUM-1:0][3:0]                  buffer_a_rd_cnt;
 
 //////////////////////add engine signal/
-reg signed    [31:0]          add_tree_in[`NUM_OF_BANKS-1:0][`ENGINE_NUM-1:0];
+reg signed[31:0]          add_tree_in[`NUM_OF_BANKS-1:0][`ENGINE_NUM-1:0];
 reg     [`NUM_OF_BANKS-1:0]                                 add_tree_in_valid;
+reg signed[31:0]          add_tree_in_r[`NUM_OF_BANKS-1:0][`ENGINE_NUM-1:0];
+reg     [`NUM_OF_BANKS-1:0]                                 add_tree_in_valid_r;
 wire    [`NUM_OF_BANKS-1:0][31:0]                           add_tree_out;
 wire    [`NUM_OF_BANKS-1:0]                                 add_tree_out_valid;
+
 
 //generate end generate
 genvar m,n;
@@ -76,11 +81,38 @@ for(m = 0; m < `ENGINE_NUM; m++) begin
     end
 
 
-    assign buffer_a_rd_en          = (buffer_a_data_empty == 0)? {`ENGINE_NUM{1'b1}} : {`ENGINE_NUM{1'b0}};
+    //assign buffer_a_rd_en[m]          = buffer_a_data_empty ? 1'b0 : 1'b1;
+
+    always @(posedge clk) begin
+        buffer_a_data_empty_r1[m]   <= buffer_a_data_empty[m];
+        buffer_a_data_empty_r2[m]   <= buffer_a_data_empty_r1[m];
+        buffer_a_rd_en_r1[m]        <= buffer_a_rd_en[m]; 
+        buffer_a_rd_en_r2[m]        <= buffer_a_rd_en_r1[m];     
+    end     
+
+    always @(posedge clk) begin
+        if(~rst_n)
+            buffer_a_rd_cnt[m]         <= 4'b0;
+        else if(buffer_a_rd_cnt[m][3] & (buffer_a_data_empty_r2 == 0) )
+            buffer_a_rd_cnt[m]         <= 4'b0;
+        else if(buffer_a_rd_cnt[m][3])
+            buffer_a_rd_cnt[m]         <= buffer_a_rd_cnt[m];
+        else 
+            buffer_a_rd_cnt[m]         <= buffer_a_rd_cnt[m] + 1'b1;
+    end
+
+    always @(posedge clk) begin
+        if(buffer_a_rd_cnt[m][3] & (buffer_a_data_empty_r2 == 0))
+            buffer_a_rd_en[m]       <= 1'b1;
+        else
+            buffer_a_rd_en[m]       <= 1'b0;
+    end
+
+
 
     distram_fifo  #( .FIFO_WIDTH      (32*`NUM_OF_BANKS), 
                     .FIFO_DEPTH_BITS (       6        ) 
-    ) inst_b_fifo (
+    ) inst_a_fifo (
         .clk        (clk),
         .reset_n    (rst_n),
 
@@ -90,7 +122,7 @@ for(m = 0; m < `ENGINE_NUM; m++) begin
         .almostfull (                   ), 
 
         //reading side.....
-        .re         (buffer_a_rd_en[m]     ),
+        .re         (buffer_a_rd_en_r2[m]  ),
         .dout       (buffer_a_rd_data[m]   ),
         .valid      (buffer_a_data_valid[m]),
         .empty      (buffer_a_data_empty[m]),
@@ -99,7 +131,8 @@ for(m = 0; m < `ENGINE_NUM; m++) begin
 
     for(n = 0;n < `NUM_OF_BANKS; n++)begin
         always @(posedge clk) begin
-            add_tree_in[n][m]        <= buffer_a_rd_data[m][n*32+31:n*32];
+            add_tree_in[n][m]           <= buffer_a_rd_data[m][n*32+31:n*32];
+            add_tree_in_r[n][m]         <= add_tree_in[n][m];
         end
     end
 
@@ -114,6 +147,7 @@ generate
 for(k = 0; k < `NUM_OF_BANKS; k++) begin
     always @(posedge clk) begin
         add_tree_in_valid[k]        <= buffer_a_data_valid[0];
+        add_tree_in_valid_r[k]      <= add_tree_in_valid[k];
     end
 /////////////////////add engine///////
     sgd_adder_tree #(
@@ -121,8 +155,8 @@ for(k = 0; k < `NUM_OF_BANKS; k++) begin
     ) inst_ax (
         .clk              ( clk                   ),
         .rst_n            ( rst_n                 ), 
-        .v_input          ( add_tree_in[k]        ),
-        .v_input_valid    ( add_tree_in_valid[k]  ),
+        .v_input          ( add_tree_in_r[k]      ),
+        .v_input_valid    ( add_tree_in_valid_r[k]),
         .v_output         ( add_tree_out[k]       ),   //output...
         .v_output_valid   ( add_tree_out_valid[k] ) 
     ); 

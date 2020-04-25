@@ -33,15 +33,15 @@ module sgd_gradient (
     input   wire [31:0]                            number_of_bits, 
 
     output  reg                                    fifo_a_rd_en,     //rd 
- input wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] fifo_a_rd_data,
+    input wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] fifo_a_rd_data,
 
     //------------------Input: dot product---------------//
     input wire signed                       [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0],         //
     input wire                                     ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0],
 
     //------------------Output: dot products for all the banks. ---------------//
-    output wire signed                      [31:0] acc_gradient[`NUM_BITS_PER_BANK-1:0], //
-    output wire                                    acc_gradient_valid[`NUM_BITS_PER_BANK-1:0]   //
+    output reg signed                      [31:0] acc_gradient[`NUM_BITS_PER_BANK-1:0], //
+    output reg                                    acc_gradient_valid[`NUM_BITS_PER_BANK-1:0]   //
 );
 
 reg               [11:0] main_counter, main_counter_wire;
@@ -97,11 +97,18 @@ always @(posedge clk) begin
 end
 
 
-reg         loss_pre_valid[`NUM_OF_BANKS-1:0];
-reg signed  [31:0] loss_pre[`NUM_OF_BANKS-1:0]; 
+reg         loss_pre_valid[`NUM_OF_BANKS-1:0],loss_pre1_valid[`NUM_OF_BANKS-1:0],loss_pre2_valid[`NUM_OF_BANKS-1:0];
+reg signed  [31:0] loss_pre[`NUM_OF_BANKS-1:0],loss_pre1[`NUM_OF_BANKS-1:0]; 
+
+reg [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] fifo_a_rd_data_r1,fifo_a_rd_data_r2;
 
 reg signed  [31:0] loss[`NUM_OF_BANKS-1:0]; //for each sample , loss is fixed.
 reg         loss_valid[`NUM_OF_BANKS-1:0];  //for each sample, the valid signal is valid for main_counter cycles. 
+
+    always @(posedge clk) begin  
+        fifo_a_rd_data_r1            <= fifo_a_rd_data;  
+    end
+
 
 genvar i, j;
 generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
@@ -114,12 +121,16 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     //data will be valid after two cycles..
     always @(posedge clk) begin    
         loss_pre_valid[i]          <= fifo_a_rd_en;
-        loss_valid[i]              <= loss_pre_valid[i];
+        loss_pre1_valid[i]         <= loss_pre_valid[i];
+        loss_valid[i]              <= loss_pre1_valid[i];
     end
     //Fixme, the latency may not be enough...
-    always @(posedge clk) begin    
-        loss[i]                    <= staged_axy[i];
+    always @(posedge clk) begin  
+        loss_pre[i]                <= staged_axy[i];  
+        loss[i]                    <= loss_pre[i];
     end
+
+
 end // inst_bank
 endgenerate
 ////Output: loss, loss_valid for each bank///
@@ -129,6 +140,8 @@ reg                  v_a[`NUM_BITS_PER_BANK-1:0][`NUM_OF_BANKS-1:0];
 //////////Add tree/////////////
 reg signed    [31:0] v_gradient_b[`NUM_BITS_PER_BANK-1:0][`NUM_OF_BANKS-1:0];
 reg                  v_gradient_b_valid[`NUM_BITS_PER_BANK-1:0];
+reg signed    [31:0] v_gradient_b_r[`NUM_BITS_PER_BANK-1:0][`NUM_OF_BANKS-1:0];
+reg                  v_gradient_b_valid_r[`NUM_BITS_PER_BANK-1:0];
 wire signed   [31:0] acc_gradient_b[`NUM_BITS_PER_BANK-1:0];
 wire                 acc_gradient_b_valid[`NUM_BITS_PER_BANK-1:0];
 
@@ -161,7 +174,7 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     begin: inst_1_c
         always @(posedge clk) begin    
             v_loss[i][j]          <= loss[j];
-            v_a[i][j]             <= fifo_a_rd_data[i+j*`NUM_BITS_PER_BANK];
+            v_a[i][j]             <= fifo_a_rd_data_r1[i+j*`NUM_BITS_PER_BANK];
         end
     end
     always @(posedge clk) begin
@@ -173,10 +186,12 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     begin: inst_2_cycle
         always @(posedge clk) begin    
             v_gradient_b[i][j]    <= (v_a[i][j] == 1'b1)? v_loss[i][j]:32'b0;
+            v_gradient_b_r[i][j]  <= v_gradient_b[i][j];
         end
     end
     always @(posedge clk) begin
         v_gradient_b_valid[i]     <= v_loss_valid[i];
+        v_gradient_b_valid_r[i]   <= v_gradient_b_valid[i];
     end
 
 
@@ -185,8 +200,8 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     ) inst_acc_gradient_b (
         .clk              ( clk                     ),
         .rst_n            ( rst_n                   ),
-        .v_input          ( v_gradient_b[i]         ),
-        .v_input_valid    ( v_gradient_b_valid[i]   ),
+        .v_input          ( v_gradient_b_r[i]         ),
+        .v_input_valid    ( v_gradient_b_valid_r[i]   ),
         .v_output         ( acc_gradient_b[i]       ),   //output...
         .v_output_valid   ( acc_gradient_b_valid[i] ) 
     ); 
@@ -269,8 +284,14 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
 //reg                  acc_gradient_shift_valid_pre[`NUM_BITS_PER_BANK-1:0];
 //reg                  acc_gradient_first_bit_en[`NUM_BITS_PER_BANK-1:0];
     //Real output of this model...    
-    assign acc_gradient[i]       = acc_gradient_shift[i][35:4];
-    assign acc_gradient_valid[i] = acc_gradient_shift_valid[i];
+    always @(posedge clk) begin
+        acc_gradient[i]       <= acc_gradient_shift[i][35:4];
+        acc_gradient_valid[i] <= acc_gradient_shift_valid[i];
+
+    end
+
+    // assign acc_gradient[i]       = acc_gradient_shift[i][35:4];
+    // assign acc_gradient_valid[i] = acc_gradient_shift_valid[i];
 end
 endgenerate
 

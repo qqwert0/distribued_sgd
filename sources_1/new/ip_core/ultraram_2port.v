@@ -15,7 +15,7 @@
 // synopsys translate_off
 `timescale 1 ps / 1 ps
 // synopsys translate_on
-module  blockram_2port #(parameter DATA_WIDTH      = 64,    
+module  ultraram_2port #(parameter DATA_WIDTH      = 64,    
                          parameter DEPTH_BIT_WIDTH = 9
 )  (
     clock,

@@ -48,7 +48,7 @@ module sgd_wr_x_to_memory #(
     output  reg                                    writing_x_to_host_memory_done,
 
     ///////////////////rd part of x_updated//////////////////////
-    output  reg                [`X_BIT_DEPTH-1:0]  x_mem_rd_addr,
+    output  reg                [`DIS_X_BIT_DEPTH-1:0]  x_mem_rd_addr,
     input   [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*32-1:0]  x_mem_rd_data,
 
     //---------------------Memory Inferface:write----------------------------//
@@ -73,13 +73,18 @@ reg [2:0] state;
 reg [3:0] error_state; //0000: ok; 0001: dimension is zero; 
 
     reg                                     writing_x_to_host_memory_en_r,writing_x_to_host_memory_en_r2,writing_x_to_host_memory_en_r3,writing_x_to_host_memory_en_r4;
-    reg                                     bits_num_index,bits_num_index_r;
-    reg [7:0]                               engine_index,engine_index_r;
+    reg [1:0]                               inner_index;
+    reg [8:0][1:0]                          inner_index_r;
+    reg [7:0]                               engine_index;
+    reg [8:0][3:0]                          engine_index_r;
     reg [31:0]                              dimension_index,dimension_index_r,dimension_minus;  
     reg [31:0]                              epoch_index;
-    reg                                     rd_en_r;
+    reg [8:0]                               rd_en_r;
     wire                                    rd_en;
 
+    reg[511:0]                              x_data_out_pre1,x_data_out_pre2,x_data_out_pre3;
+    reg                                     x_data_out_valid_pre1,x_data_out_valid_pre2,x_data_out_valid_pre3;
+    reg                                     x_data_out_almost_full_r1,x_data_out_almost_full_r2,x_data_out_almost_full_r3;
 
 
     always @(posedge clk) begin
@@ -96,10 +101,10 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     end
 
     always @(posedge clk) begin
-        bits_num_index_r                    <= bits_num_index;
-        engine_index_r                      <= engine_index;
+        inner_index_r                       <= {inner_index_r[7:0],inner_index};
+        engine_index_r                      <= {engine_index_r[7:0],engine_index};
         dimension_index_r                   <= dimension_index;
-        rd_en_r                             <= rd_en;
+        rd_en_r                             <= {rd_en_r[7:0],rd_en};
     end
 
 
@@ -132,19 +137,59 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
     always @(posedge clk) begin
         if(~rst_n) begin
-            x_data_out                      <= 0;  
-            x_data_out_valid                <= 1'b0;                  
+            x_data_out_pre1                 <= 0;  
+            x_data_out_valid_pre1           <= 1'b0;                  
         end
-        else if(rd_en_r)begin
-            x_data_out_valid                <= 1'b1;
-            if(bits_num_index_r)
-                x_data_out                  <= x_mem_rd_data[engine_index_r][1023:512];
-            else
-                x_data_out                  <= x_mem_rd_data[engine_index_r][511:0];
+        else if(rd_en_r[8])begin
+            x_data_out_valid_pre1           <= 1'b1;
+            case(inner_index_r[8])
+                2'b00:begin
+                    x_to_mem_wr_addr        <= engine_index_r[8];
+                    x_to_mem_wr_data        <= x_mem_rd_data[engine_index_r[8]];
+                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][511:0];
+                end
+                2'b01:begin
+                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][1023:512];
+                end
+                2'b10:begin
+                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][1535:1024];
+                end
+                2'b11:begin
+                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][2047:1536];
+                end
+            endcase
+        end
+        else begin
+            x_data_out_valid_pre1           <= 1'b0;
         end
     end
 
 
+
+distram_2port #(.DATA_WIDTH      (512),    
+                 .DEPTH_BIT_WIDTH (6         )
+) inst_x_updated (
+    .clock     ( clk                ),
+    .data      ( x_to_mem_wr_data  ),
+    .wraddress ( x_to_mem_wr_addr  ),
+    .wren      ( x_to_mem_wr_en    ),
+    .rdaddress ( x_to_mem_rd_addr), 
+    .q         ( x_to_mem_rd_data  )
+);
+
+
+
+    always @(posedge clk) begin
+        x_data_out_pre2                     <= x_data_out_pre1;
+        x_data_out_pre3                     <= x_data_out_pre2;
+        x_data_out                          <= x_data_out_pre3;
+        x_data_out_valid_pre2               <= x_data_out_valid_pre1;
+        x_data_out_valid_pre3               <= x_data_out_valid_pre2;
+        x_data_out_valid                    <= x_data_out_valid_pre3;
+        x_data_out_almost_full_r1           <= x_data_out_almost_full;
+        x_data_out_almost_full_r2           <= x_data_out_almost_full_r1;
+        x_data_out_almost_full_r3           <= x_data_out_almost_full_r2;
+    end
 
     
 
@@ -155,7 +200,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
     reg [3:0]                           cstate,nstate;                    
 
-    assign rd_en                        = ~x_data_out_almost_full & cstate[2];
+    assign rd_en                        = ~x_data_out_almost_full_r3 & cstate[2];
 
     always @(posedge clk) begin
         if(~rst_n)
@@ -176,7 +221,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 if(epoch_index == numEpochs)begin
                     nstate              = WRITE_MEM_END;
                 end
-                if((~writing_x_to_host_memory_en_r2) & writing_x_to_host_memory_en_r)begin
+                if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     nstate              = WRITE_MEM_DATA;
                 end
                 else begin
@@ -186,7 +231,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
             WRITE_MEM_DATA:begin
                 if(rd_en) begin
                     nstate                      = WRITE_MEM_DATA;
-                    if(bits_num_index) begin
+                    if(inner_index == 2'b11) begin
                         nstate                  = WRITE_MEM_DATA;
                         if(engine_index >= `ENGINE_NUM-1)begin
                             nstate              = WRITE_MEM_DATA;
@@ -206,10 +251,11 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     always @(posedge clk) begin
         case(cstate)
             IDLE:begin
-                bits_num_index                  <= 1'b0;
+                inner_index                     <= 1'b0;
                 engine_index                    <= 8'b0;
                 dimension_index                 <= 32'b0;
                 epoch_index                     <= 32'b0;
+                writing_x_to_host_memory_done   <= 1'b0;
 
                 x_data_send_back_start          <= 1'b0;
                 x_data_send_back_addr           <= addr_model;
@@ -220,7 +266,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
             WRITE_MEM_EPOCH:begin
                 if(epoch_index == numEpochs)begin
                 end
-                if((~writing_x_to_host_memory_en_r2) & writing_x_to_host_memory_en_r)begin
+                if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     epoch_index                 <= epoch_index + 1'b1;
                     x_data_send_back_start      <= 1'b1;
                     x_data_send_back_addr       <= x_data_send_back_addr + x_data_send_back_length;
@@ -230,8 +276,8 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
             end
             WRITE_MEM_DATA:begin
                 if(rd_en) begin
-                    bits_num_index      <= bits_num_index + 1 ;
-                    if(bits_num_index) begin
+                    inner_index         <= inner_index + 1 ;
+                    if(inner_index == 2'b11) begin
                         engine_index    <= engine_index + 1;
                         if(engine_index >= `ENGINE_NUM-1)begin
                             engine_index        <= 0;
@@ -246,6 +292,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 end
             end
             WRITE_MEM_END:begin
+                writing_x_to_host_memory_done   <= 1'b1;
             end
         endcase
     end

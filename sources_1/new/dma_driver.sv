@@ -35,7 +35,7 @@ module dma_driver(
     output logic[15:0]  pcie_tx_n,
 
     output logic        pcie_clk,
-    output logic        pcie_aresetn,
+    output reg          pcie_aresetn,
     /*input wire[0:0]     user_irq_req,
     output logic        user_irq_ack,
     output logic        msi_enable,
@@ -69,6 +69,9 @@ module dma_driver(
     output logic[7:0]   h2c_sts_0
 );
 
+wire    pcie_aresetn_o;
+always @(posedge pcie_clk)
+    pcie_aresetn                <= pcie_aresetn_o;
 
 //For PCIe 3.0 8x, the data width has to be converted from 512bit to 256bit
 
@@ -133,7 +136,7 @@ xdma_0 dma_inst (
   .pci_exp_rxp(pcie_rx_p),                                      // input wire [7 : 0] pci_exp_rxp
   .pci_exp_rxn(pcie_rx_n),                                      // input wire [7 : 0] pci_exp_rxn
   .axi_aclk(pcie_clk),                                            // output wire axi_aclk
-  .axi_aresetn(pcie_aresetn),                                      // output wire axi_aresetn
+  .axi_aresetn(pcie_aresetn_o),                                      // output wire axi_aresetn
   .usr_irq_req(1'b0),                                      // input wire [0 : 0] usr_irq_req
   .usr_irq_ack(),                                      // output wire [0 : 0] usr_irq_ack
   .msi_enable(),                                        // output wire msi_enable

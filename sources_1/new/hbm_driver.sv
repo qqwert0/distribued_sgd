@@ -25,7 +25,7 @@ module hbm_driver(
     input wire                  sys_clk_100M,
     axi_mm.slave                hbm_axi[31:0],
     output wire                 hbm_clk,
-    output wire                 hbm_rstn
+    output reg                  hbm_rstn
     );
 
 
@@ -236,7 +236,9 @@ BUFG u_AXI_ACLK6_st0  (
 
 
 assign hbm_clk            = AXI_ACLK0_st0_buf;
-assign hbm_rstn           = MMCM_LOCK_0;
+always @(posedge hbm_clk) begin
+    hbm_rstn                <= MMCM_LOCK_0;
+end
 
 
 

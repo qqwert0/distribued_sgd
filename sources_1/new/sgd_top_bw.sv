@@ -182,13 +182,13 @@ end
 
 assign um_done = done;
 
-//always @(posedge clk) 
-//begin
-//    if(~rst_n_g) 
-//        num_received_rds <= 1'b0;
-//    else if ( m_axi_c2h_data.valid & m_axi_c2h_data.ready & started ) 
-//        num_received_rds <= num_received_rds + 1'b1;
-//end
+// always @(posedge clk) 
+// begin
+//     if(~rst_n_g) 
+//         num_received_rds <= 1'b0;
+//     else if ( m_axi_c2h_data.valid & m_axi_c2h_data.ready & started ) 
+//         num_received_rds <= num_received_rds + 1'b1;
+// end
 
 
 always @(posedge clk) 
@@ -217,11 +217,13 @@ wire signed                          [31:0] ax_minus_b_sign_shifted_result[`NUM_
 wire                                        ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0];
 
 ///////////////////rd part of x//////////////////////
-wire  [`ENGINE_NUM-1:0]         [`X_BIT_DEPTH-1:0] x_updated_rd_addr;
+wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr;
+reg  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr_r1,x_updated_rd_addr_r2;
 wire  [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*32-1:0] x_updated_rd_data;
+reg  [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*32-1:0] x_updated_rd_data_r1,x_updated_rd_data_r2,x_updated_rd_data_r3;
 
-wire   [`ENGINE_NUM-1:0][`X_BIT_DEPTH-1:0] x_batch_rd_addr;
-wire           [`X_BIT_DEPTH-1:0] x_mem_rd_addr;
+wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_batch_rd_addr;
+wire           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr;
 
 //generate end generate
 genvar i;
@@ -248,7 +250,7 @@ wire  [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data;
 
 
 //Compute the wr_counter to make sure ...
-blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
+ultraram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
                  .DEPTH_BIT_WIDTH (`DIS_X_BIT_DEPTH)
 ) inst_x (
     .clock     ( clk             ),
@@ -301,7 +303,7 @@ blockram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS ), //64
                  .FIFO_DEPTH_BITS (`A_FIFO_DEPTH_BITS )  //determine the size of 16  13
 ) inst_a_fifo (
     .clk        (clk),
-    .reset_n    (rst_n),
+    .reset_n    (rst_n_reg),
 
     //Writing side....
     .we         (fifo_a_wr_en     ), //or one cycle later...
@@ -322,7 +324,7 @@ blockram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS ), //64
 ////////////////////////////////////////////////////////////////////
 ///////////////////wr part of x//////////////////////
 wire                              x_updated_wr_en;     
-wire           [`X_BIT_DEPTH-1:0] x_updated_wr_addr;
+wire           [`DIS_X_BIT_DEPTH-1:0] x_updated_wr_addr;
 wire  [`NUM_BITS_PER_BANK*32-1:0] x_updated_wr_data;
 
 
@@ -337,13 +339,13 @@ begin
     //if(~rst_n) 
     //    writing_x_to_host_memory_en_r <= 1'b0;
     //else
-        writing_x_to_host_memory_en_r <= writing_x_to_host_memory_en[0];
+        writing_x_to_host_memory_en_r <= writing_x_to_host_memory_en[i];
 end
 
 
     sgd_dot_product inst_sgd_dot_product (
     .clk                        (clk        ),
-    .rst_n                      (rst_n      ), //rst_n
+    .rst_n                      (rst_n_reg      ), //rst_n
     .started                    (started    ),
     .state_counters_dot_product (           ),    
 
@@ -373,11 +375,21 @@ end
     .dot_product_signed         (dot_product_signed[i]         ) 
   );
 
+//serial loss -->gradient
+// reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`NUM_OF_BANKS-1:0],ax_minus_b_sign_shifted_result_r2[`NUM_OF_BANKS-1:0]; 
+// reg                                        ax_minus_b_sign_shifted_result_valid_r1[`NUM_OF_BANKS-1:0],ax_minus_b_sign_shifted_result_valid_r2[`NUM_OF_BANKS-1:0];
+
+//     always @(posedge clk) begin
+//         ax_minus_b_sign_shifted_result_r1       <= ax_minus_b_sign_shifted_result;
+//         // ax_minus_b_sign_shifted_result_r2       <= ax_minus_b_sign_shifted_result_r1;
+//         ax_minus_b_sign_shifted_result_valid_r1 <= ax_minus_b_sign_shifted_result_valid;
+//         // ax_minus_b_sign_shifted_result_valid_r2 <= ax_minus_b_sign_shifted_result_valid_r1;
+//     end
 
 
   sgd_gradient inst_sgd_gradient (
     .clk                        (clk        ),
-    .rst_n                      (rst_n      ), //rst_n
+    .rst_n                      (rst_n_reg      ), //rst_n
     .started                    (started    ),
 
     .number_of_epochs           (number_of_epochs ),
@@ -398,7 +410,21 @@ end
 
 
 //Maybe add registers after x_updated_rd_addr...
-assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr : x_batch_rd_addr[i];
+
+reg           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr_r1,x_mem_rd_addr_r2,x_mem_rd_addr_r3;
+
+always @(posedge clk)begin
+    x_mem_rd_addr_r1            <= x_mem_rd_addr;
+    x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
+    x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
+    x_updated_rd_data_r1[i]     <= x_updated_rd_data[i];
+    x_updated_rd_data_r2[i]     <= x_updated_rd_data_r1[i];
+    x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
+    x_updated_rd_addr_r1[i]     <= x_updated_rd_addr[i];
+    x_updated_rd_addr_r2[i]     <= x_updated_rd_addr_r1[i];
+end
+
+assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r3 : x_batch_rd_addr[i];
 
 //Compute the wr_counter to make sure ...add reigster to any rd/wr ports. 
 blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
@@ -408,7 +434,7 @@ blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),
     .data      ( x_updated_wr_data  ),
     .wraddress ( x_updated_wr_addr  ),
     .wren      ( x_updated_wr_en    ),
-    .rdaddress ( x_updated_rd_addr[i]  ), 
+    .rdaddress ( x_updated_rd_addr_r2[i]), 
     .q         ( x_updated_rd_data[i]  )
 );
 
@@ -422,7 +448,7 @@ blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),
 ////////////////Read/write ports of x_updated////////////////////////
 sgd_x_updated_rd_wr inst_x_updated_rd_wr(
     .clk                        (clk    ),
-    .rst_n                      (rst_n_x_updated_rd_wr ),
+    .rst_n                      (rst_n_reg ),
 
     .started                    (started            ), 
     .dimension                  (dimension          ),
@@ -443,7 +469,7 @@ sgd_x_updated_rd_wr inst_x_updated_rd_wr(
 ////////////////Write ports of x////////////////////////
 sgd_x_wr inst_x_wr (
     .clk                        (clk    ),
-    .rst_n                      (rst_n_x_wr         ),
+    .rst_n                      (rst_n_reg         ),
 
     .state_counters_x_wr        (state_counters_x_wr[i]),
     .started                    (started            ), 
@@ -472,7 +498,7 @@ endgenerate
 
   sgd_serial_loss inst_sgd_serial_loss (
     .clk                        (clk                      ),
-    .rst_n                      (rst_n                    ), 
+    .rst_n                      (rst_n_reg                    ), 
 
     .step_size                  (step_size                ),
 
@@ -491,7 +517,7 @@ endgenerate
 ////////////Writing back to the host memory////////////
 sgd_wr_x_to_memory inst_wr_x_to_memory (
     .clk                        (clk    ),
-    .rst_n                      (rst_n_wr_x_to_memory ),
+    .rst_n                      (rst_n_reg ),
 
     .state_counters_wr_x_to_memory (state_counters_wr_x_to_memory),
     .started                    (started            ),
@@ -503,7 +529,7 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
     .writing_x_to_host_memory_done (writing_x_to_host_memory_done),
 
     .x_mem_rd_addr              (x_mem_rd_addr      ),
-    .x_mem_rd_data              (x_updated_rd_data  ),
+    .x_mem_rd_data              (x_updated_rd_data_r3  ),
 
     //---------------------Memory Inferface:write----------------------------//
     //cmd

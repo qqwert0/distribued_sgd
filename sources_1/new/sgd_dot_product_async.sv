@@ -51,8 +51,8 @@ module sgd_dot_product (
     output wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data,
 
     //------------------Output: dot products for all the banks. ---------------//
-    output wire signed [`NUM_OF_BANKS-1:0][31:0] dot_product_signed,       //
-    output wire        [`NUM_OF_BANKS-1:0]       dot_product_signed_valid  //
+    output reg signed [`NUM_OF_BANKS-1:0][31:0] dot_product_signed,       //
+    output reg        [`NUM_OF_BANKS-1:0]       dot_product_signed_valid  //
 );
 
 reg       started_r, started_r2, started_r3;   //one cycle delay from started...
@@ -75,44 +75,88 @@ end
 //wire                  [8:0] buffer_a_rd_addr;
 
 /////////////////////Wr of a_buffer///////////////////////////////////////
-reg  [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_wr_data;
-reg                                         buffer_a_wr_en;
-wire                                        buffer_a_almost_full;
-assign dispatch_axb_a_almost_full = buffer_a_almost_full; //output...
-always @(posedge clk) 
-begin
-    buffer_a_wr_data   <= dispatch_axb_a_data;   
-    buffer_a_wr_en     <= dispatch_axb_a_wr_en; //1'b0;
+reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_wr_data;
+reg  [1:0]                                       buffer_a_wr_en;
+wire [1:0]                                       buffer_a_almost_full;
+reg  [1:0]                                       buffer_a_choice;
+assign dispatch_axb_a_almost_full = buffer_a_almost_full[0] || buffer_a_almost_full[1] ; //output...
+always @(posedge clk) begin
+    if(buffer_a_choice[1])begin
+        buffer_a_wr_data[1]   <= dispatch_axb_a_data;
+        buffer_a_wr_data[0]   <= dispatch_axb_a_data;   
+        buffer_a_wr_en       <= {dispatch_axb_a_wr_en,1'b0}; //1'b0;
+    end
+    else begin
+        buffer_a_wr_data[1]   <= dispatch_axb_a_data;
+        buffer_a_wr_data[0]   <= dispatch_axb_a_data;   
+        buffer_a_wr_en       <= {1'b0,dispatch_axb_a_wr_en}; //1'b0;    
+    end
 end
 
+always @(posedge clk) begin
+    if(~rst_n)
+        buffer_a_choice <= 2'b0;
+    else if(dispatch_axb_a_wr_en)
+        buffer_a_choice <= buffer_a_choice + 1'b1;
+    else
+        buffer_a_choice <= buffer_a_choice;
+end
 
 /////////////////////rd of a_buffer///////////////////////////////////////
 //wire                                        buffer_a_rd_data_valid;
 //wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data;
-wire                     buffer_a_empty;
-wire               [8:0] buffer_a_counter; 
-reg                      buffer_a_rd_en;
-
+wire [1:0]                    buffer_a_empty;
+wire [1:0]              [8:0] buffer_a_counter; 
+reg  [1:0]                    buffer_a_rd_en;
+wire [1:0]                                       buffer_a_rd_data_valid_o;
+wire [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data_o;
 
 //on-chip buffer for a 
-blockram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
-                 .FIFO_DEPTH_BITS ( `X_BIT_DEPTH                   ) //depth 
-) inst_a_buffer (
+distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
+                 .FIFO_DEPTH_BITS ( 6                   ) //depth 
+) inst_a_buffer0 (
     .clk        (clk),
     .reset_n    (rst_n),
 
     //Writing side....
-    .we         ( buffer_a_wr_en        ), //dispatch_axb_a_wr_en
-    .din        ( buffer_a_wr_data      ), //dispatch_axb_a_data
-    .almostfull ( buffer_a_almost_full  ), //dispatch_axb_a_almost_full
+    .we         ( buffer_a_wr_en[0]        ), //dispatch_axb_a_wr_en
+    .din        ( buffer_a_wr_data[0]      ), //dispatch_axb_a_data
+    .almostfull ( buffer_a_almost_full[0]  ), //dispatch_axb_a_almost_full
 
     //reading side.....
-    .re         (buffer_a_rd_en         ),
-    .dout       (buffer_a_rd_data       ),
-    .valid      (buffer_a_rd_data_valid ),
-    .empty      (buffer_a_empty         ),
-    .count      (buffer_a_counter       )
+    .re         (buffer_a_rd_en[0]         ),
+    .dout       (buffer_a_rd_data_o[0]     ),
+    .valid      (buffer_a_rd_data_valid_o[0]),
+    .empty      (buffer_a_empty[0]         ),
+    .count      (buffer_a_counter[0]       )
 );
+
+
+
+
+
+//on-chip buffer for a 
+distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
+                 .FIFO_DEPTH_BITS ( 6                  ) //depth 
+) inst_a_buffer1 (
+    .clk        (clk),
+    .reset_n    (rst_n),
+
+    //Writing side....
+    .we         ( buffer_a_wr_en[1]        ), //dispatch_axb_a_wr_en
+    .din        ( buffer_a_wr_data[1]      ), //dispatch_axb_a_data
+    .almostfull ( buffer_a_almost_full[1]  ), //dispatch_axb_a_almost_full
+
+    //reading side.....
+    .re         (buffer_a_rd_en[1]         ),
+    .dout       (buffer_a_rd_data_o[1]     ),
+    .valid      (buffer_a_rd_data_valid_o[1]),
+    .empty      (buffer_a_empty[1]         ),
+    .count      (buffer_a_counter[1]       )
+);
+
+assign buffer_a_rd_data_valid = buffer_a_rd_data_valid_o[0] | buffer_a_rd_data_valid_o[1];
+assign buffer_a_rd_data = buffer_a_rd_data_valid_o[0] ? buffer_a_rd_data_o[0] : buffer_a_rd_data_o[1];
 
 
 reg x_rd_en, x_rd_data_valid, x_rd_valid_r1; //it becomes valid after two cycles
@@ -126,10 +170,9 @@ end
 /////////////////One FSM to control NUM_BITS_PER_BANK accumulators////////////////
 //Wait for the wr_counter valid information to do the computation....
 //One state for the .
-reg                [2:0] state;
+reg                [3:0] state;
 reg               [11:0] main_counter, main_counter_minus_1, main_index;
-reg                      numBits_flag,num_dimension_flag;
-reg                [4:0] numBits_minus_1, numBits_index;
+reg                [4:0] numBits_minus_1, numBits_minus_2, numBits_index;
 reg                [9:0] numEpochs, epoch_index;
 reg               [31:0] numSamples, sample_index;
 reg                [4:0] num_shift_bits;
@@ -155,13 +198,14 @@ always @(posedge clk) begin
         number_of_epochs_r       <= number_of_epochs;
         number_of_samples_r      <= number_of_samples;
         number_of_bits_r         <= number_of_bits;
-        main_counter_wire        <= dimension[31 :(`BIT_WIDTH_OF_BANK+`ENGINE_NUM_WIDTH+1)] + (dimension[`BIT_WIDTH_OF_BANK+`ENGINE_NUM_WIDTH:0] != 0);
+        main_counter_wire        <= dimension[31 :(`BIT_WIDTH_OF_BANK+`ENGINE_NUM_WIDTH)] + (dimension[`BIT_WIDTH_OF_BANK+`ENGINE_NUM_WIDTH-1:0] != 0);
         //mini_batch_size_r   <= mini_batch_size;
         step_size_r              <= step_size;   
 
         main_counter             <= main_counter_wire;        //dimension[9+MAX_BURST_BITS-1:9];        
         main_counter_minus_1     <= main_counter_wire - 1'b1; //MAX_BURST_BITS'h1;
-        numBits_minus_1          <= number_of_bits_r[5:0] - 6'h2;
+        numBits_minus_1          <= number_of_bits_r[5:0] - 6'h1;
+        numBits_minus_2          <= number_of_bits_r[5:0] - 6'h2;
         numEpochs                <= number_of_epochs_r;                       //  - 10'h1
         numSamples               <= number_of_samples_r;
         num_shift_bits           <= step_size_r[4:0]; // - 5'h0  - 5'h6
@@ -184,18 +228,20 @@ always @(posedge clk) begin
 end
 
 reg                      in_computing_stage;
-wire                     buffer_a_rd_safe; //It can be the bottleneck.
+wire [1:0]               buffer_a_rd_safe; //It can be the bottleneck.
                         //cannot read in this cycle     //Kill the potential that the next cycle can be empty.
-assign                   buffer_a_rd_safe = ~(buffer_a_empty | ( (buffer_a_counter == 1'h1) & buffer_a_rd_en ));
-localparam [2:0]
-        BANK_IDLE_STATE          = 3'b000,
-        BANK_STARTING_STATE      = 3'b001,
-        BANK_EPOCH_STATE         = 3'b010,        
-        BANK_A_SAMPLE_STATE      = 3'b011,
-        BANK_A_COMPUTING_STATE   = 3'b100,
-        BANK_CHECK_X_STATE       = 3'b101,
-        BANK_END_STATE           = 3'b110,
-        BANK_EPOCH_SAMPLE_STATE  = 3'b111;
+assign                   buffer_a_rd_safe[0] = ~(buffer_a_empty[0] | ( (buffer_a_counter[0] == 1'h1) & buffer_a_rd_en[0] ));
+assign                   buffer_a_rd_safe[1] = ~(buffer_a_empty[1] | ( (buffer_a_counter[1] == 1'h1) & buffer_a_rd_en[1] ));
+localparam [3:0]
+        BANK_IDLE_STATE          = 4'b000,
+        BANK_STARTING_STATE      = 4'b001,
+        BANK_EPOCH_STATE         = 4'b010,        
+        BANK_A_SAMPLE_STATE      = 4'b011,
+        BANK_A_COMPUTING_STATE0  = 4'b100,
+        BANK_A_COMPUTING_STATE1  = 4'b101,
+        BANK_CHECK_X_STATE       = 4'b110,
+        BANK_END_STATE           = 4'b111,
+        BANK_EPOCH_SAMPLE_STATE  = 4'b1000;
 
 always@(posedge clk) begin
     if(~rst_n) 
@@ -257,8 +303,7 @@ always@(posedge clk) begin
             begin
                 main_index                <= 1'b0; //MAX_BURST_BITS'h0;
                 numBits_index             <= 5'b0; //indices should be zero at the beginning of each sample..
-                numBits_flag              <= 1'b0;
-                num_dimension_flag        <= 1'b0;
+
                 if (~not_the_last_sample)//(sample_index == numSamples) //
                     state                 <= BANK_EPOCH_STATE;
                 //else if ( bank_batch_size == loop_index ) //Need to check the dependency... 
@@ -277,42 +322,69 @@ always@(posedge clk) begin
                     //if ( not_the_last_sample ) //sample_index != numSamples
                     x_rd_credit_counter   <= x_rd_credit_counter + 8'b1;
                     //num_issued_mem_rd_reqs  <= num_issued_mem_rd_reqs + 64'b1;
-                    state                 <= BANK_A_COMPUTING_STATE;           
+                    state                 <= BANK_A_COMPUTING_STATE0;           
                 end
                 //May log down the cycles the computing pipeline is idle due to the RAW dependency. 
             end
 
-            BANK_A_COMPUTING_STATE: //For the sample. 
+            BANK_A_COMPUTING_STATE0: //For the sample. 
             begin
                 in_computing_stage        <= 1'b1;
 
-                if (buffer_a_rd_safe)//With this valid, it is saft to generate the rd_en signal in the next cycle. 
+                if (buffer_a_rd_safe[0])//With this valid, it is saft to generate the rd_en signal in the next cycle. 
                 begin
                     //1, Outer loop: bit_offset.
-                    numBits_flag                    <= numBits_flag + 1;
-                    if(numBits_flag) begin
-                        num_dimension_flag          <= num_dimension_flag + 1;
-                        if(num_dimension_flag) begin
-                            numBits_index         <= numBits_index + 5'h1;
-                            if (numBits_index == numBits_minus_1) begin //end of each 512-feature chunk...
-                                numBits_index     <= 5'h0;  
-                                //2, Innar loop: main index...
-                                main_index        <= main_index + 1'b1; //MAX_BURST_BITS'h1;
-                                if (main_index == main_counter_minus_1) begin//end of all the chunks...                                    
-                                    //main_index             <= 0;
-                                    state         <= BANK_A_SAMPLE_STATE; //BANK_A_SAMPLE_STATE; //Back to the A's main entry.
-                                end
-                            end
+                    numBits_index         <= numBits_index + 5'h1;
+                    if (numBits_index == numBits_minus_1) begin //end of each 512-feature chunk...
+                        numBits_index     <= 5'h0;  
+                        //2, Innar loop: main index...
+                        main_index        <= main_index + 1'b1; //MAX_BURST_BITS'h1;
+                        state             <= BANK_A_COMPUTING_STATE1;
+                        if (main_index == main_counter_minus_1) begin//end of all the chunks...                                    
+                            //main_index             <= 0;
+                            state         <= BANK_A_SAMPLE_STATE; //BANK_A_SAMPLE_STATE; //Back to the A's main entry.
                         end
                     end
 
                     //////////////////////////////Output////////////////////////////// 
                     //buffer_a_rd_en           <= 1'b1;
-                    buffer_a_rd_en        <= 1'b1; //[`NUM_OF_BANKS-1:0]
-                    if (~numBits_flag)
+                    buffer_a_rd_en[0]        <= 1'b1; //[`NUM_OF_BANKS-1:0]
+                    if (numBits_index == 5'h0)
                     begin
                         x_rd_en           <= 1'b1;  //[`NUM_OF_BANKS-1:0]
-                        x_rd_addr         <= {main_index[`DIS_X_BIT_DEPTH-1:0],num_dimension_flag};
+                        x_rd_addr         <= main_index[`DIS_X_BIT_DEPTH-1:0];
+                    end
+
+                    //Do some thing....
+                    //num_issued_mem_rd_reqs             <= num_issued_mem_rd_reqs + 64'b1;
+                end
+            end
+            BANK_A_COMPUTING_STATE1: //For the sample. 
+            begin
+                in_computing_stage        <= 1'b1;
+
+                if (buffer_a_rd_safe[1])//With this valid, it is saft to generate the rd_en signal in the next cycle. 
+                begin
+                    //1, Outer loop: bit_offset.
+                    numBits_index         <= numBits_index + 5'h1;
+                    if (numBits_index == numBits_minus_1) begin //end of each 512-feature chunk...
+                        numBits_index     <= 5'h0;  
+                        //2, Innar loop: main index...
+                        main_index        <= main_index + 1'b1; //MAX_BURST_BITS'h1;
+                        state             <= BANK_A_COMPUTING_STATE0;
+                        if (main_index == main_counter_minus_1) begin//end of all the chunks...                                    
+                            //main_index             <= 0;
+                            state         <= BANK_A_SAMPLE_STATE; //BANK_A_SAMPLE_STATE; //Back to the A's main entry.
+                        end
+                    end
+
+                    //////////////////////////////Output////////////////////////////// 
+                    //buffer_a_rd_en           <= 1'b1;
+                    buffer_a_rd_en[1]        <= 1'b1; //[`NUM_OF_BANKS-1:0]
+                    if (numBits_index == 5'h0)
+                    begin
+                        x_rd_en           <= 1'b1;  //[`NUM_OF_BANKS-1:0]
+                        x_rd_addr         <= main_index[`DIS_X_BIT_DEPTH-1:0];
                     end
 
                     //Do some thing....
@@ -447,10 +519,9 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
                     d_numBits_index[i]          <= 5'h0;  
                     //2, Intra loop: chunk_index
                     chunk_index[i]              <= chunk_index[i] + 1'b1; 
-                    if (chunk_index[i] == main_counter_minus_1) //end of all the chunks...
-                    begin
+                    if (chunk_index[i] == main_counter_minus_1) begin//end of all the chunks...
                         chunk_index[i]          <= 0;
-                    ax_dot_product_valid_pre[i] <= 1'b1;
+                        ax_dot_product_valid_pre[i] <= 1'b1;
                     end
                 end
                 //output to the next cycle....
@@ -472,8 +543,10 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     end
 
     //Output of dot product module.
-    assign dot_product_signed[i]        = ax_dot_product[i][35:4];       //
-    assign dot_product_signed_valid[i]  = ax_dot_product_valid[i];  //
+    always @(posedge clk) begin
+        dot_product_signed[i]        = ax_dot_product[i][35:4];       //
+        dot_product_signed_valid[i]  = ax_dot_product_valid[i];  //
+    end
 
 end 
 endgenerate
