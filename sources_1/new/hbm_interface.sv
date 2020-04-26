@@ -75,19 +75,19 @@ module hbm_interface(
     .m_axis_tdata({m_axis_dma_read_cmd.length,m_axis_dma_read_cmd.address})
     );
 
-     axis_clock_converter_96 hbm_bench_write_cmd_cc_inst (
-     .s_axis_aresetn(hbm_rstn),
-     .s_axis_aclk(hbm_clk),
-     .s_axis_tvalid(m_axis_dma_to_hbm_write_cmd.valid),
-     .s_axis_tready(m_axis_dma_to_hbm_write_cmd.ready),
-     .s_axis_tdata({m_axis_dma_to_hbm_write_cmd.length,m_axis_dma_to_hbm_write_cmd.address}),
+    //  axis_clock_converter_96 hbm_bench_write_cmd_cc_inst (
+    //  .s_axis_aresetn(hbm_rstn),
+    //  .s_axis_aclk(hbm_clk),
+    //  .s_axis_tvalid(m_axis_dma_to_hbm_write_cmd.valid),
+    //  .s_axis_tready(m_axis_dma_to_hbm_write_cmd.ready),
+    //  .s_axis_tdata({m_axis_dma_to_hbm_write_cmd.length,m_axis_dma_to_hbm_write_cmd.address}),
     
-     .m_axis_aresetn(user_aresetn),
-     .m_axis_aclk(user_clk),
-     .m_axis_tvalid(m_axis_dma_write_cmd.valid),
-     .m_axis_tready(m_axis_dma_write_cmd.ready),
-     .m_axis_tdata({m_axis_dma_write_cmd.length,m_axis_dma_write_cmd.address})
-     );
+    //  .m_axis_aresetn(user_aresetn),
+    //  .m_axis_aclk(user_clk),
+    //  .m_axis_tvalid(m_axis_dma_write_cmd.valid),
+    //  .m_axis_tready(m_axis_dma_write_cmd.ready),
+    //  .m_axis_tdata({m_axis_dma_write_cmd.length,m_axis_dma_write_cmd.address})
+    //  );
 
 
 
@@ -143,22 +143,22 @@ module hbm_interface(
       .m_axis_tlast(m_axis_dma_write_data.last)    // output wire m_axis_tlast
       );
 
-     axis_data_fifo_512_cc hbm_bench_write_data_cc_inst (
-     .s_axis_aresetn(hbm_rstn),
-     .s_axis_aclk(hbm_clk),
-     .s_axis_tvalid(m_axis_dma_to_hbm_write_data.valid),
-     .s_axis_tready(m_axis_dma_to_hbm_write_data.ready),
-     .s_axis_tdata(m_axis_dma_to_hbm_write_data.data),
-     .s_axis_tkeep(m_axis_dma_to_hbm_write_data.keep),
-     .s_axis_tlast(m_axis_dma_to_hbm_write_data.last),
+    //  axis_data_fifo_512_cc hbm_bench_write_data_cc_inst (
+    //  .s_axis_aresetn(hbm_rstn),
+    //  .s_axis_aclk(hbm_clk),
+    //  .s_axis_tvalid(m_axis_dma_to_hbm_write_data.valid),
+    //  .s_axis_tready(m_axis_dma_to_hbm_write_data.ready),
+    //  .s_axis_tdata(m_axis_dma_to_hbm_write_data.data),
+    //  .s_axis_tkeep(m_axis_dma_to_hbm_write_data.keep),
+    //  .s_axis_tlast(m_axis_dma_to_hbm_write_data.last),
     
-     .m_axis_aclk(user_clk),
-     .m_axis_tvalid(m_axis_reg_write_data.valid),
-     .m_axis_tready(m_axis_reg_write_data.ready),
-     .m_axis_tdata(m_axis_reg_write_data.data),
-     .m_axis_tkeep(m_axis_reg_write_data.keep),
-     .m_axis_tlast(m_axis_reg_write_data.last)
-     );
+    //  .m_axis_aclk(user_clk),
+    //  .m_axis_tvalid(m_axis_reg_write_data.valid),
+    //  .m_axis_tready(m_axis_reg_write_data.ready),
+    //  .m_axis_tdata(m_axis_reg_write_data.data),
+    //  .m_axis_tkeep(m_axis_reg_write_data.keep),
+    //  .m_axis_tlast(m_axis_reg_write_data.last)
+    //  );
 
 
 
@@ -631,6 +631,7 @@ sgd_top_bw #(
 )sgd_top_bw_inst (
     .clk                                (hbm_clk),
     .rst_n                              (hbm_rstn),
+    .dma_clk                            (user_clk),
     //-------------------------------------------------//
     .start_um                           (hbm_write_done),
     .um_params                          (m_axis_mlweaving_data),
@@ -658,12 +659,12 @@ sgd_top_bw #(
 
 );
    hbm_send_back  u_hbm_send_back (
-       .hbm_clk                                            ( hbm_clk                                             ),
-       .hbm_aresetn                                        ( hbm_rstn                                            ),
-       .m_axis_dma_write_cmd                               ( m_axis_dma_to_hbm_write_cmd                         ),
-       .m_axis_dma_write_data                              ( m_axis_dma_to_hbm_write_data                        ),
+       .hbm_clk                                            ( user_clk                                            ),
+       .hbm_aresetn                                        ( user_aresetn                                        ),
+       .m_axis_dma_write_cmd                               ( m_axis_dma_write_cmd                                ),
+       .m_axis_dma_write_data                              ( m_axis_reg_write_data                               ),
        .start                                              ( x_data_send_back_start                              ),
-       .addr_x                                             ( addr_modex_data_send_back_addr                      ),
+       .addr_x                                             ( x_data_send_back_addr                               ),
        .data_length                                        ( x_data_send_back_length                             ),
        .back_data                                          ( back_data                                           ),
        .back_valid                                         ( back_valid                                          ),

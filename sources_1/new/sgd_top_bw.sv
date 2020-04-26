@@ -30,6 +30,7 @@ module sgd_top_bw #(parameter DATA_WIDTH_IN  = 4,
                  ) (
     input   wire                                   clk,
     input   wire                                   rst_n,
+    input   wire                                   dma_clk,
     //-------------------------------------------------//
     input   wire                                   start_um,
     input   wire [511:0]                           um_params,
@@ -215,6 +216,10 @@ wire                    writing_x_to_host_memory_done;
 //serial loss -->gradient
 wire signed                          [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0]; 
 wire                                        ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0];
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0]; 
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0]; 
+reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0];
 
 ///////////////////rd part of x//////////////////////
 wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr;
@@ -224,6 +229,8 @@ reg  [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*32-1:0] x_updated_rd_data_r1,x_updated
 
 wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_batch_rd_addr;
 wire           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr;
+
+
 
 //generate end generate
 genvar i;
@@ -375,17 +382,6 @@ end
     .dot_product_signed         (dot_product_signed[i]         ) 
   );
 
-//serial loss -->gradient
-// reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`NUM_OF_BANKS-1:0],ax_minus_b_sign_shifted_result_r2[`NUM_OF_BANKS-1:0]; 
-// reg                                        ax_minus_b_sign_shifted_result_valid_r1[`NUM_OF_BANKS-1:0],ax_minus_b_sign_shifted_result_valid_r2[`NUM_OF_BANKS-1:0];
-
-//     always @(posedge clk) begin
-//         ax_minus_b_sign_shifted_result_r1       <= ax_minus_b_sign_shifted_result;
-//         // ax_minus_b_sign_shifted_result_r2       <= ax_minus_b_sign_shifted_result_r1;
-//         ax_minus_b_sign_shifted_result_valid_r1 <= ax_minus_b_sign_shifted_result_valid;
-//         // ax_minus_b_sign_shifted_result_valid_r2 <= ax_minus_b_sign_shifted_result_valid_r1;
-//     end
-
 
   sgd_gradient inst_sgd_gradient (
     .clk                        (clk        ),
@@ -400,8 +396,8 @@ end
     .fifo_a_rd_en               (fifo_a_rd_en     ),
     .fifo_a_rd_data             (fifo_a_rd_data   ),
 
-    .ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid),
-    .ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result      ), 
+    .ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid_r2[i/2] ),
+    .ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result_r2[i/2]      ), 
 
     .acc_gradient_valid         (acc_gradient_valid),
     .acc_gradient               (acc_gradient      )
@@ -514,10 +510,38 @@ endgenerate
   );
 
 
+
+genvar m,n;
+generate for( m = 0; m < `ENGINE_NUM/4; m = m + 1)begin
+    for( n = 0; n < `NUM_OF_BANKS; n = n + 1)begin
+        always @(posedge clk) 
+        begin
+            ax_minus_b_sign_shifted_result_r1[m][n]            <= ax_minus_b_sign_shifted_result[n]; 
+            ax_minus_b_sign_shifted_result_valid_r1[m][n]      <= ax_minus_b_sign_shifted_result_valid[n];
+        end
+    end
+end 
+endgenerate
+
+genvar s,t;
+generate for( s = 0; s < `ENGINE_NUM/2; s = s + 1)begin
+    for( t = 0; t < `NUM_OF_BANKS; t = t + 1)begin
+        always @(posedge clk) 
+        begin
+            ax_minus_b_sign_shifted_result_r2[s][t]           <= ax_minus_b_sign_shifted_result_r1[s/2][t]; 
+            ax_minus_b_sign_shifted_result_valid_r2[s][t]      <= ax_minus_b_sign_shifted_result_valid_r1[s/2][t];
+        end
+    end
+end 
+endgenerate
+
+
+
 ////////////Writing back to the host memory////////////
 sgd_wr_x_to_memory inst_wr_x_to_memory (
     .clk                        (clk    ),
     .rst_n                      (rst_n_reg ),
+    .dma_clk                    (dma_clk),
 
     .state_counters_wr_x_to_memory (state_counters_wr_x_to_memory),
     .started                    (started            ),

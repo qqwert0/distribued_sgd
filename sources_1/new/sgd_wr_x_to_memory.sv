@@ -33,6 +33,7 @@ module sgd_wr_x_to_memory #(
                      parameter MAX_DIMENSION_BITS = `MAX_BIT_WIDTH_OF_X  ) ( //16
     input   wire                                   clk,
     input   wire                                   rst_n,
+    input   wire                                   dma_clk,
     //--------------------------Begin/Stop-----------------------------//
     input   wire                                   started,
     output  wire [31:0]                            state_counters_wr_x_to_memory,
@@ -75,16 +76,22 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     reg                                     writing_x_to_host_memory_en_r,writing_x_to_host_memory_en_r2,writing_x_to_host_memory_en_r3,writing_x_to_host_memory_en_r4;
     reg [1:0]                               inner_index;
     reg [8:0][1:0]                          inner_index_r;
-    reg [7:0]                               engine_index;
+    reg [3:0]                               engine_index;
     reg [8:0][3:0]                          engine_index_r;
     reg [31:0]                              dimension_index,dimension_index_r,dimension_minus;  
     reg [31:0]                              epoch_index;
     reg [8:0]                               rd_en_r;
     wire                                    rd_en;
 
-    reg[511:0]                              x_data_out_pre1,x_data_out_pre2,x_data_out_pre3;
-    reg                                     x_data_out_valid_pre1,x_data_out_valid_pre2,x_data_out_valid_pre3;
     reg                                     x_data_out_almost_full_r1,x_data_out_almost_full_r2,x_data_out_almost_full_r3;
+
+    reg [`ENGINE_NUM-1:0][511:0]                x_to_mem_wr_data;
+    reg [`ENGINE_NUM-1:0]                       x_to_mem_wr_en;
+    wire[`ENGINE_NUM-1:0][511:0]                x_to_mem_rd_data;
+    wire[`ENGINE_NUM-1:0]                       x_to_mem_rd_en;
+    wire[`ENGINE_NUM-1:0]                       x_to_mem_empty;
+    wire[`ENGINE_NUM-1:0]                       x_to_mem_almost_full;
+
 
 
     always @(posedge clk) begin
@@ -130,67 +137,6 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
             dimension_minus                 <= dimension - `ENGINE_NUM * `NUM_BITS_PER_BANK;
     end
 
-    always @(posedge clk) begin
-        x_data_send_back_length             <= dimension << 5;
-    end
-
-
-    always @(posedge clk) begin
-        if(~rst_n) begin
-            x_data_out_pre1                 <= 0;  
-            x_data_out_valid_pre1           <= 1'b0;                  
-        end
-        else if(rd_en_r[8])begin
-            x_data_out_valid_pre1           <= 1'b1;
-            case(inner_index_r[8])
-                2'b00:begin
-                    x_to_mem_wr_addr        <= engine_index_r[8];
-                    x_to_mem_wr_data        <= x_mem_rd_data[engine_index_r[8]];
-                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][511:0];
-                end
-                2'b01:begin
-                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][1023:512];
-                end
-                2'b10:begin
-                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][1535:1024];
-                end
-                2'b11:begin
-                    // x_data_out_pre1         <= x_mem_rd_data[engine_index_r[8]][2047:1536];
-                end
-            endcase
-        end
-        else begin
-            x_data_out_valid_pre1           <= 1'b0;
-        end
-    end
-
-
-
-distram_2port #(.DATA_WIDTH      (512),    
-                 .DEPTH_BIT_WIDTH (6         )
-) inst_x_updated (
-    .clock     ( clk                ),
-    .data      ( x_to_mem_wr_data  ),
-    .wraddress ( x_to_mem_wr_addr  ),
-    .wren      ( x_to_mem_wr_en    ),
-    .rdaddress ( x_to_mem_rd_addr), 
-    .q         ( x_to_mem_rd_data  )
-);
-
-
-
-    always @(posedge clk) begin
-        x_data_out_pre2                     <= x_data_out_pre1;
-        x_data_out_pre3                     <= x_data_out_pre2;
-        x_data_out                          <= x_data_out_pre3;
-        x_data_out_valid_pre2               <= x_data_out_valid_pre1;
-        x_data_out_valid_pre3               <= x_data_out_valid_pre2;
-        x_data_out_valid                    <= x_data_out_valid_pre3;
-        x_data_out_almost_full_r1           <= x_data_out_almost_full;
-        x_data_out_almost_full_r2           <= x_data_out_almost_full_r1;
-        x_data_out_almost_full_r3           <= x_data_out_almost_full_r2;
-    end
-
     
 
     localparam [3:0]    IDLE            = 4'b0001,
@@ -200,7 +146,7 @@ distram_2port #(.DATA_WIDTH      (512),
 
     reg [3:0]                           cstate,nstate;                    
 
-    assign rd_en                        = ~x_data_out_almost_full_r3 & cstate[2];
+    assign rd_en                        = ~x_to_mem_almost_full[0] & cstate[2];
 
     always @(posedge clk) begin
         if(~rst_n)
@@ -257,9 +203,6 @@ distram_2port #(.DATA_WIDTH      (512),
                 epoch_index                     <= 32'b0;
                 writing_x_to_host_memory_done   <= 1'b0;
 
-                x_data_send_back_start          <= 1'b0;
-                x_data_send_back_addr           <= addr_model;
-
                 x_mem_rd_addr                   <= 0;
 
             end
@@ -268,8 +211,6 @@ distram_2port #(.DATA_WIDTH      (512),
                 end
                 if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     epoch_index                 <= epoch_index + 1'b1;
-                    x_data_send_back_start      <= 1'b1;
-                    x_data_send_back_addr       <= x_data_send_back_addr + x_data_send_back_length;
                 end
                 else begin
                 end
@@ -298,6 +239,86 @@ distram_2port #(.DATA_WIDTH      (512),
     end
 
 
+
+
+
+
+//generate end generate
+genvar i;
+// Instantiate engines
+generate
+for(i = 0; i < `ENGINE_NUM; i++) begin    
+
+    always @(posedge clk) begin
+        if(~rst_n) begin
+            x_to_mem_wr_en[i]                   <= 0;  
+            x_to_mem_wr_data[i]                 <= 0;                  
+        end
+        else if(rd_en_r[8] && (engine_index_r[8] == i))begin
+            x_to_mem_wr_en[i]           <= 1'b1;
+            case(inner_index_r[8])
+                2'b00:begin
+                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][511:0];
+                end
+                2'b01:begin
+                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][1023:512];
+                end
+                2'b10:begin
+                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][1535:1024];
+                end
+                2'b11:begin
+                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][2047:1536];
+                end
+            endcase
+        end
+        else begin
+            x_to_mem_wr_en[i]                   <= 1'b0;
+        end
+    end
+
+
+    indepen_fifo_512w_512r_64d indepen_fifo_512w_512r_64d_inst (
+        .rst(~rst_n),              // input wire rst
+        .wr_clk(clk),        // input wire wr_clk
+        .rd_clk(dma_clk),        // input wire rd_clk
+        .din(x_to_mem_wr_data[i]),              // input wire [511 : 0] din
+        .wr_en(x_to_mem_wr_en[i]),          // input wire wr_en
+        .rd_en(x_to_mem_rd_en[i]),          // input wire rd_en
+        .dout(x_to_mem_rd_data[i]),            // output wire [511 : 0] dout
+        .full(),            // output wire full
+        .empty(x_to_mem_empty[i]),          // output wire empty
+        .prog_full(x_to_mem_almost_full[i])  // output wire prog_full
+    );
+
+end
+endgenerate
+
+sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
+    .clk                        (dma_clk),
+    .rst_n                      (rst_n),
+    //--------------------------Begin/Stop-----------------------------//
+    .started                    (1),
+    //---------Input: Parameters (where, how many) from the root module-------//
+    .addr_model                 (addr_model),
+    .dimension                  (dimension),
+    .numEpochs                  (numEpochs),
+    ///////////////////rd part of x_updated_fifo//////////////////////
+    .x_to_mem_rd_data           (x_to_mem_rd_data),
+    .x_to_mem_rd_en             (x_to_mem_rd_en),
+    .x_to_mem_empty             (x_to_mem_empty),
+    //---------------------Memory Inferface:write----------------------------//
+    //cmd
+    .x_data_send_back_start     (x_data_send_back_start),
+    .x_data_send_back_addr      (x_data_send_back_addr),
+    .x_data_send_back_length    (x_data_send_back_length),
+
+    //data
+    .x_data_out                 (x_data_out),
+    .x_data_out_valid           (x_data_out_valid),
+    .x_data_out_almost_full     (x_data_out_almost_full)
+
+
+    );
 
 
 endmodule
