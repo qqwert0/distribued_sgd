@@ -85,8 +85,8 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
     reg                                     x_data_out_almost_full_r1,x_data_out_almost_full_r2,x_data_out_almost_full_r3;
 
-    reg [`ENGINE_NUM-1:0][511:0]                x_to_mem_wr_data;
-    reg [`ENGINE_NUM-1:0]                       x_to_mem_wr_en;
+    reg [`ENGINE_NUM-1:0][511:0]                x_to_mem_wr_data,x_to_mem_wr_data_pre;
+    reg [`ENGINE_NUM-1:0]                       x_to_mem_wr_en,x_to_mem_wr_en_pre;
     wire[`ENGINE_NUM-1:0][511:0]                x_to_mem_rd_data;
     wire[`ENGINE_NUM-1:0]                       x_to_mem_rd_en;
     wire[`ENGINE_NUM-1:0]                       x_to_mem_empty;
@@ -251,29 +251,42 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
 
     always @(posedge clk) begin
         if(~rst_n) begin
-            x_to_mem_wr_en[i]                   <= 0;  
-            x_to_mem_wr_data[i]                 <= 0;                  
+            x_to_mem_wr_en_pre[i]                   <= 0;                    
         end
-        else if(rd_en_r[8] && (engine_index_r[8] == i))begin
-            x_to_mem_wr_en[i]           <= 1'b1;
-            case(inner_index_r[8])
+        else if(rd_en_r[6] && (engine_index_r[6] == i))begin
+            x_to_mem_wr_en_pre[i]           <= 1'b1;
+        end
+        else begin
+            x_to_mem_wr_en_pre[i]                   <= 1'b0;
+        end
+    end
+
+    always @(posedge clk) begin
+        if(~rst_n) begin 
+            x_to_mem_wr_data_pre[i]                 <= 0;                  
+        end
+        else begin
+            case(inner_index_r[6])
                 2'b00:begin
-                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][511:0];
+                    x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][511:0];
                 end
                 2'b01:begin
-                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][1023:512];
+                    x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][1023:512];
                 end
                 2'b10:begin
-                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][1535:1024];
+                    x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][1535:1024];
                 end
                 2'b11:begin
-                    x_to_mem_wr_data[i]         <= x_mem_rd_data[i][2047:1536];
+                    x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][2047:1536];
                 end
             endcase
         end
-        else begin
-            x_to_mem_wr_en[i]                   <= 1'b0;
-        end
+    end
+
+
+    always @(posedge clk) begin
+        x_to_mem_wr_en[i]                       <= x_to_mem_wr_en_pre[i];
+        x_to_mem_wr_data[i]                     <= x_to_mem_wr_data_pre[i];
     end
 
 

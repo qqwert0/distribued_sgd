@@ -33,7 +33,17 @@ module sgd_top_bw #(parameter DATA_WIDTH_IN  = 4,
     input   wire                                   dma_clk,
     //-------------------------------------------------//
     input   wire                                   start_um,
-    input   wire [511:0]                           um_params,
+    // input   wire [511:0]                           um_params,
+
+    input   wire [63:0]                            addr_model,
+    input   wire [31:0]                            mini_batch_size,
+    input   wire [31:0]                            step_size,
+    input   wire [31:0]                            number_of_epochs,
+    input   wire [31:0]                            dimension,
+    input   wire [31:0]                            number_of_samples,
+    input   wire [31:0]                            number_of_bits,
+
+
     output  wire                                   um_done,
     output  reg  [255:0]                           um_state_counters,
 
@@ -125,15 +135,13 @@ wire [`ENGINE_NUM-1:0] sgd_execution_done;
 wire [31:0] num_issued_mem_rd_reqs;
 
 
-reg [57:0] addr_a;
-reg [57:0] addr_b;
-reg [57:0] addr_model;
-reg [31:0] mini_batch_size;
-reg [31:0] step_size;
-reg [31:0] number_of_epochs;
-reg [31:0] dimension;
-reg [31:0] number_of_samples;
-reg [31:0] number_of_bits;
+// reg [57:0] addr_model;
+// reg [31:0] mini_batch_size;
+// reg [31:0] step_size;
+// reg [31:0] number_of_epochs;
+// reg [31:0] dimension;
+// reg [31:0] number_of_samples;
+// reg [31:0] number_of_bits;
 
 always @(posedge clk) 
 begin
@@ -148,18 +156,18 @@ end
 /////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////Get the parameters///////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
-always @(posedge clk) 
-begin 
-        addr_a           <= um_params[ 63:6  ]; //no need of [5:0], cache line aligned... Mohsen
-        addr_b           <= um_params[127:70 ];
-        addr_model       <= um_params[191:134];
-        mini_batch_size  <= um_params[223:192];
-        step_size        <= um_params[255:224];
-        number_of_epochs <= um_params[287:256];
-        dimension        <= um_params[319:288];    
-        number_of_samples<= um_params[351:320];
-        number_of_bits   <= um_params[383:352];    
-end
+// always @(posedge clk) 
+// begin 
+//         addr_a           <= um_params[ 63:6  ]; //no need of [5:0], cache line aligned... Mohsen
+//         addr_b           <= um_params[127:70 ];
+//         addr_model       <= um_params[191:134];
+//         mini_batch_size  <= um_params[223:192];
+//         step_size        <= um_params[255:224];
+//         number_of_epochs <= um_params[287:256];
+//         dimension        <= um_params[319:288];    
+//         number_of_samples<= um_params[351:320];
+//         number_of_bits   <= um_params[383:352];    
+// end
 
 
 
@@ -412,15 +420,15 @@ reg           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr_r1,x_mem_rd_addr_r2,x_mem_rd_
 always @(posedge clk)begin
     x_mem_rd_addr_r1            <= x_mem_rd_addr;
     x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
-    x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
+    // x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
     x_updated_rd_data_r1[i]     <= x_updated_rd_data[i];
     x_updated_rd_data_r2[i]     <= x_updated_rd_data_r1[i];
-    x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
+    // x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
     x_updated_rd_addr_r1[i]     <= x_updated_rd_addr[i];
     x_updated_rd_addr_r2[i]     <= x_updated_rd_addr_r1[i];
 end
 
-assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r3 : x_batch_rd_addr[i];
+assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r2 : x_batch_rd_addr[i];
 
 //Compute the wr_counter to make sure ...add reigster to any rd/wr ports. 
 blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
@@ -553,7 +561,7 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
     .writing_x_to_host_memory_done (writing_x_to_host_memory_done),
 
     .x_mem_rd_addr              (x_mem_rd_addr      ),
-    .x_mem_rd_data              (x_updated_rd_data_r3  ),
+    .x_mem_rd_data              (x_updated_rd_data_r2  ),
 
     //---------------------Memory Inferface:write----------------------------//
     //cmd

@@ -47,8 +47,8 @@ module sgd_dot_product (
     input             [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data, 
 
 
-    output wire                                        buffer_a_rd_data_valid,
-    output wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data,
+    output reg                                        buffer_a_rd_data_valid,
+    output reg [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data,
 
     //------------------Output: dot products for all the banks. ---------------//
     output reg signed [`NUM_OF_BANKS-1:0][31:0] dot_product_signed,       //
@@ -75,28 +75,36 @@ end
 //wire                  [8:0] buffer_a_rd_addr;
 
 /////////////////////Wr of a_buffer///////////////////////////////////////
+reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] dispatch_axb_a_data_r;
+reg  [1:0]                                       dispatch_axb_a_wr_en_r;
 reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_wr_data;
 reg  [1:0]                                       buffer_a_wr_en;
 wire [1:0]                                       buffer_a_almost_full;
 reg  [1:0]                                       buffer_a_choice;
 assign dispatch_axb_a_almost_full = buffer_a_almost_full[0] || buffer_a_almost_full[1] ; //output...
+
+always @(posedge clk) begin
+    dispatch_axb_a_data_r       <= dispatch_axb_a_data;
+    dispatch_axb_a_wr_en_r      <= dispatch_axb_a_wr_en;
+end
+
 always @(posedge clk) begin
     if(buffer_a_choice[1])begin
-        buffer_a_wr_data[1]   <= dispatch_axb_a_data;
-        buffer_a_wr_data[0]   <= dispatch_axb_a_data;   
-        buffer_a_wr_en       <= {dispatch_axb_a_wr_en,1'b0}; //1'b0;
+        buffer_a_wr_data[1]   <= dispatch_axb_a_data_r;
+        buffer_a_wr_data[0]   <= dispatch_axb_a_data_r;   
+        buffer_a_wr_en       <= {dispatch_axb_a_wr_en_r,1'b0}; //1'b0;
     end
     else begin
-        buffer_a_wr_data[1]   <= dispatch_axb_a_data;
-        buffer_a_wr_data[0]   <= dispatch_axb_a_data;   
-        buffer_a_wr_en       <= {1'b0,dispatch_axb_a_wr_en}; //1'b0;    
+        buffer_a_wr_data[1]   <= dispatch_axb_a_data_r;
+        buffer_a_wr_data[0]   <= dispatch_axb_a_data_r;   
+        buffer_a_wr_en       <= {1'b0,dispatch_axb_a_wr_en_r}; //1'b0;    
     end
 end
 
 always @(posedge clk) begin
     if(~rst_n)
         buffer_a_choice <= 2'b0;
-    else if(dispatch_axb_a_wr_en)
+    else if(dispatch_axb_a_wr_en_r)
         buffer_a_choice <= buffer_a_choice + 1'b1;
     else
         buffer_a_choice <= buffer_a_choice;
@@ -106,7 +114,7 @@ end
 //wire                                        buffer_a_rd_data_valid;
 //wire [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data;
 wire [1:0]                    buffer_a_empty;
-wire [1:0]              [8:0] buffer_a_counter; 
+wire [1:0]              [5:0] buffer_a_counter; 
 reg  [1:0]                    buffer_a_rd_en;
 wire [1:0]                                       buffer_a_rd_data_valid_o;
 wire [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data_o;
@@ -155,15 +163,18 @@ distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS),
     .count      (buffer_a_counter[1]       )
 );
 
-assign buffer_a_rd_data_valid = buffer_a_rd_data_valid_o[0] | buffer_a_rd_data_valid_o[1];
-assign buffer_a_rd_data = buffer_a_rd_data_valid_o[0] ? buffer_a_rd_data_o[0] : buffer_a_rd_data_o[1];
+always @(posedge clk) begin
+    buffer_a_rd_data_valid <= buffer_a_rd_data_valid_o[0] | buffer_a_rd_data_valid_o[1];
+    buffer_a_rd_data <= buffer_a_rd_data_valid_o[0] ? buffer_a_rd_data_o[0] : buffer_a_rd_data_o[1];
+end
 
-
+reg [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data_r;
 reg x_rd_en, x_rd_data_valid, x_rd_valid_r1; //it becomes valid after two cycles
 always @(posedge clk) 
 begin 
-    x_rd_valid_r1             <= x_rd_en;
-    x_rd_data_valid           <= x_rd_valid_r1;
+    x_rd_valid_r1               <= x_rd_en;
+    x_rd_data_valid             <= x_rd_valid_r1;
+    x_rd_data_r                 <= x_rd_data;
 end
 
 
@@ -433,7 +444,7 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
         always @(posedge clk) 
         begin 
             a_input[i][j]     <= buffer_a_rd_data[`NUM_BITS_PER_BANK*i+j]; //1 bit
-            x_input[i][j]     <= x_rd_data[32*(j+1)-1:32*j]; // 
+            x_input[i][j]     <= x_rd_data_r[32*(j+1)-1:32*j]; // 
         end 
     end
     for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_at_input

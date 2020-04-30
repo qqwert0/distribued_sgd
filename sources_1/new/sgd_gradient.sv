@@ -107,6 +107,7 @@ reg         loss_valid[`NUM_OF_BANKS-1:0];  //for each sample, the valid signal 
 
     always @(posedge clk) begin  
         fifo_a_rd_data_r1            <= fifo_a_rd_data;  
+        // fifo_a_rd_data_r2            <= fifo_a_rd_data_r1;
     end
 
 
@@ -122,12 +123,14 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     always @(posedge clk) begin    
         loss_pre_valid[i]          <= fifo_a_rd_en;
         loss_pre1_valid[i]         <= loss_pre_valid[i];
+        // loss_pre2_valid[i]         <= loss_pre1_valid[i];
         loss_valid[i]              <= loss_pre1_valid[i];
     end
     //Fixme, the latency may not be enough...
     always @(posedge clk) begin  
-        loss_pre[i]                <= staged_axy[i];  
-        loss[i]                    <= loss_pre[i];
+        loss_pre1[i]                <= staged_axy[i]; 
+        // loss_pre1[i]               <= loss_pre[i]; 
+        loss[i]                    <= loss_pre1[i];
     end
 
 

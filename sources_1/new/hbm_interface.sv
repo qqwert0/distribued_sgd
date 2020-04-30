@@ -161,7 +161,9 @@ module hbm_interface(
     //  );
 
 
-
+    wire                    m_axis_hbm_mlweaving_valid;
+    wire                    m_axis_hbm_mlweaving_ready;
+    wire[511:0]             m_axis_hbm_mlweaving_data;
 
 
     axis_clock_converter_512 axis_clock_converter_mlweaving_parameter (
@@ -218,18 +220,18 @@ module hbm_interface(
             channel_choice              <= 0;
         end
         else if(m_axis_hbm_mlweaving_ready && m_axis_hbm_mlweaving_valid) begin
-            addr_a                      <= m_axis_mlweaving_data[ 63:0  ]; 
-            addr_b                      <= m_axis_mlweaving_data[127:64 ];
-            addr_model                  <= m_axis_mlweaving_data[191:128];
-            mini_batch_size             <= m_axis_mlweaving_data[223:192];
-            step_size                   <= m_axis_mlweaving_data[255:224];
-            number_of_epochs            <= m_axis_mlweaving_data[287:256];
-            dimension                   <= m_axis_mlweaving_data[319:288];    
-            number_of_samples           <= m_axis_mlweaving_data[351:320];
-            number_of_bits              <= m_axis_mlweaving_data[383:352];   
-            data_a_length               <= m_axis_mlweaving_data[415:384];
-            array_length                <= m_axis_mlweaving_data[447:416];
-            channel_choice              <= m_axis_mlweaving_data[479:448];
+            addr_a                      <= m_axis_hbm_mlweaving_data[ 63:0  ]; 
+            addr_b                      <= m_axis_hbm_mlweaving_data[127:64 ];
+            addr_model                  <= m_axis_hbm_mlweaving_data[191:128];
+            mini_batch_size             <= m_axis_hbm_mlweaving_data[223:192];
+            step_size                   <= m_axis_hbm_mlweaving_data[255:224];
+            number_of_epochs            <= m_axis_hbm_mlweaving_data[287:256];
+            dimension                   <= m_axis_hbm_mlweaving_data[319:288];    
+            number_of_samples           <= m_axis_hbm_mlweaving_data[351:320];
+            number_of_bits              <= m_axis_hbm_mlweaving_data[383:352];   
+            data_a_length               <= m_axis_hbm_mlweaving_data[415:384];
+            array_length                <= m_axis_hbm_mlweaving_data[447:416];
+            channel_choice              <= m_axis_hbm_mlweaving_data[479:448];
         end
         else begin
             addr_a                      <= addr_a; 
@@ -326,9 +328,11 @@ module hbm_interface(
 
 
     wire [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_in;
+    reg  [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_in_r;
     wire [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_out;
     reg  [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_o;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en;
+    reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en_r;
     reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_rd_en;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_almost_full;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_empty;
@@ -519,7 +523,14 @@ module hbm_interface(
  	    .wr_b_counter(), 
  	    .rd_sum_cnt()
     );  
-    
+
+    always @(posedge hbm_clk) begin
+        hbm_read_a_wr_en_r[i*2]         <= hbm_read_a_wr_en[i*2];
+        hbm_read_a_wr_en_r[i*2+1]       <= hbm_read_a_wr_en[i*2+1];
+        hbm_read_a_data_in_r[i*2]          <= hbm_read_a_data_in[i*2];
+        hbm_read_a_data_in_r[i*2+1]        <= hbm_read_a_data_in[i*2+1];
+    end 
+
     distram_fifo  #( .FIFO_WIDTH      (     256       ), 
                     .FIFO_DEPTH_BITS (       6        ) 
     ) inst_a0_fifo (
@@ -527,8 +538,8 @@ module hbm_interface(
         .reset_n    (hbm_rstn),
 
         //Writing side. from sgd_dispatch...
-        .we         ( hbm_read_a_wr_en[i*2]    ),
-        .din        ( hbm_read_a_data_in[i*2]  ),
+        .we         ( hbm_read_a_wr_en_r[i*2]    ),
+        .din        ( hbm_read_a_data_in_r[i*2]  ),
         .almostfull ( hbm_read_a_almost_full[i*2]    ), 
 
         //reading side.....
@@ -546,8 +557,8 @@ module hbm_interface(
         .reset_n    (hbm_rstn),
 
         //Writing side. from sgd_dispatch...
-        .we         ( hbm_read_a_wr_en[i*2+1]    ),
-        .din        ( hbm_read_a_data_in[i*2+1]  ),
+        .we         ( hbm_read_a_wr_en_r[i*2+1]    ),
+        .din        ( hbm_read_a_data_in_r[i*2+1]  ),
         .almostfull ( hbm_read_a_almost_full[i*2+1]    ), 
 
         //reading side.....
@@ -634,7 +645,18 @@ sgd_top_bw #(
     .dma_clk                            (user_clk),
     //-------------------------------------------------//
     .start_um                           (hbm_write_done),
-    .um_params                          (m_axis_mlweaving_data),
+    // .um_params                          (m_axis_mlweaving_data),
+
+    .addr_model                         (addr_model),
+    .mini_batch_size                    (mini_batch_size),
+    .step_size                          (step_size),
+    .number_of_epochs                   (number_of_epochs),
+    .dimension                          (dimension),
+    .number_of_samples                  (number_of_samples),
+    .number_of_bits                     (number_of_bits),
+
+
+
     .um_done                            (),
     .um_state_counters                  (),
 
