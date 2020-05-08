@@ -128,12 +128,12 @@ wire[511:0]  	m_axis_mlweaving_data;
 //     );
 
 
-    // assign hbm_axi[8].awready = 1;
-    // assign hbm_axi[8].wready = 1;
-    // assign hbm_axi[8].bid = 0;
-    // assign hbm_axi[8].bresp = 0;
-    // assign hbm_axi[8].bvalid = 1;
-    // assign hbm_axi[8].buser = 0;            
+//     assign hbm_axi[8].awready = 1;
+//     assign hbm_axi[8].wready = 1;
+//     assign hbm_axi[8].bid = 0;
+//     assign hbm_axi[8].bresp = 0;
+//     assign hbm_axi[8].bvalid = 1;
+//     assign hbm_axi[8].buser = 0;            
 
     // //generate end generate
     // genvar i;
@@ -160,40 +160,97 @@ wire[511:0]  	m_axis_mlweaving_data;
     // end
     // endgenerate
 
-hbm_driver inst_hbm_driver(
+//hbm_driver inst_hbm_driver(
 
-    .sys_clk_100M(hbm_clk),
-    .hbm_axi(hbm_axi),
-    .hbm_clk(),
-    .hbm_rstn()
-    );
+//    .sys_clk_100M(hbm_clk),
+//    .hbm_axi(hbm_axi),
+//    .hbm_clk(),
+//    .hbm_rstn()
+//    );
 
-hbm_interface inst_hbm_interface(
-    .user_clk(hbm_clk),
-    .user_aresetn(hbm_rstn),
+//hbm_interface inst_hbm_interface(
+//    .user_clk(hbm_clk),
+//    .user_aresetn(hbm_rstn),
 
+//    .hbm_clk(hbm_clk),
+//    .hbm_rstn(hbm_rstn),
+
+//    //mlweaving parameter
+//    .m_axis_mlweaving_valid(m_axis_mlweaving_valid),
+//    .m_axis_mlweaving_ready(m_axis_mlweaving_ready),
+//    .m_axis_mlweaving_data(m_axis_mlweaving_data),
+
+//    /* DMA INTERFACE */
+//    //Commands
+//    .m_axis_dma_read_cmd(axis_dma_read_cmd),
+//    .m_axis_dma_write_cmd(axis_dma_write_cmd),
+
+//    //Data streams
+//    .m_axis_dma_write_data(axis_dma_write_data),
+//    .s_axis_dma_read_data(axis_dma_read_data),
+    
+//    /* HBM INTERFACE */
+//    .hbm_axi(hbm_axi)
+
+//    );
+
+hbm_write inst_hbm_write(
     .hbm_clk(hbm_clk),
-    .hbm_rstn(hbm_rstn),
-
-    //mlweaving parameter
-    .m_axis_mlweaving_valid(m_axis_mlweaving_valid),
-    .m_axis_mlweaving_ready(m_axis_mlweaving_ready),
-    .m_axis_mlweaving_data(m_axis_mlweaving_data),
+    .hbm_aresetn(hbm_rstn),
 
     /* DMA INTERFACE */
     //Commands
     .m_axis_dma_read_cmd(axis_dma_read_cmd),
-    .m_axis_dma_write_cmd(axis_dma_write_cmd),
+    // axis_mem_cmd.master         m_axis_dma_write_cmd,
 
     //Data streams
-    .m_axis_dma_write_data(axis_dma_write_data),
+    // axi_stream.master           m_axis_dma_write_data,
     .s_axis_dma_read_data(axis_dma_read_data),
-    
+
+    //signal
+
+    .start(m_axis_mlweaving_valid),
+    .data_a_length(data_a_length),  //need to multiple of 512
+    .data_b_length(number_of_samples << 2),  //need to multiple of 512
+    .dma_addr_a(addr_a),
+    .dma_addr_b(addr_b),
+    .hbm_addr_b(33'h80000000),  
+    .number_of_samples(number_of_samples),  
+    .dimension(dimension),
+    .number_of_bits(number_of_bits),  
+    .araddr_stride(araddr_stride),   
+
+    .hbm_write_done(),               
+
     /* HBM INTERFACE */
-    .hbm_axi(hbm_axi)
+    //Write addr (output)
+    .m_axi_AWVALID (), //wr address valid
+    .m_axi_AWADDR  (), //wr byte address
+    .m_axi_AWID    (), //wr address id
+    .m_axi_AWLEN   (), //wr burst=awlen+1,
+    .m_axi_AWSIZE  (), //wr 3'b101, 32B
+    .m_axi_AWBURST (), //wr burst type: 01 (INC), 00 (FIXED)
+    .m_axi_AWLOCK  (), //wr no
+    .m_axi_AWCACHE (), //wr no
+    .m_axi_AWPROT  (), //wr no
+    .m_axi_AWQOS   (), //wr no
+    .m_axi_AWREGION(), //wr no
+    .m_axi_AWREADY (1), //wr ready to accept address.
 
-    );
+    //Write data (output)  
+    .m_axi_WVALID  (), //wr data valid
+    .m_axi_WDATA   (), //wr data
+    .m_axi_WSTRB   (), //wr data strob
+    .m_axi_WLAST   (), //wr last beat in a burst
+    .m_axi_WID     (), //wr data id
+    .m_axi_WREADY  (1), //wr ready to accept data
 
+    //Write response (input)  
+    .m_axi_BVALID  (1), 
+    .m_axi_BRESP   (0),
+    .m_axi_BID     (0),
+    .m_axi_BREADY  ()
 
+    ); 
 
 endmodule

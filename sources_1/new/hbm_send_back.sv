@@ -38,15 +38,21 @@ module hbm_send_back(
     //
     input wire [511:0]          back_data,
     input wire                  back_valid,
-    output wire                 almost_full
+    output reg                  almost_full
 
     );
 
     reg                                     start_d0,start_d1;
+    reg [63:0]                              addr_x_r;
+    reg [31:0]                              data_length_r; 
+    wire                                    fifo_almost_full;
     
     always @(posedge hbm_clk) begin
         start_d0                            <= start;
         start_d1                            <= start_d0;
+        addr_x_r                            <= addr_x;
+        data_length_r                       <= data_length;
+        almost_full                         <= fifo_almost_full;
     end
 
 
@@ -89,7 +95,7 @@ module hbm_send_back(
     .dout(fifo_data_out),                // output wire [511 : 0] dout
     .full(),                // output wire full
     .empty(fifo_empty),              // output wire empty
-    .prog_full(almost_full),      // output wire prog_full
+    .prog_full(fifo_almost_full),      // output wire prog_full
     .wr_rst_busy(),  // output wire wr_rst_busy
     .rd_rst_busy()  // output wire rd_rst_busy
     );
@@ -98,7 +104,7 @@ module hbm_send_back(
     reg[31:0]                   data_length_minus;
 
     always @(posedge hbm_clk)begin
-        data_length_minus                   <= data_length - 32'd64;
+        data_length_minus                   <= data_length_r - 32'd64;
     end
 
     always @(posedge hbm_clk)begin
@@ -135,8 +141,8 @@ module hbm_send_back(
             IDLE:begin
                 if(start_d1)begin
                     nstate                  = SEND_WR_CMD;
-                    dma_write_cmd_address   = addr_x;
-                    dma_write_cmd_length    = data_length;
+                    dma_write_cmd_address   = addr_x_r;
+                    dma_write_cmd_length    = data_length_r;
                 end
                 else
                     nstate                  = IDLE;
@@ -148,7 +154,7 @@ module hbm_send_back(
                     nstate                  = SEND_WR_CMD;
             end
             SEND_WR_DATA:begin
-                if( data_counter >= data_length)
+                if( data_counter >= data_length_r)
                     nstate                  = IDLE;
                 else
                     nstate                  = SEND_WR_DATA;

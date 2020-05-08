@@ -135,7 +135,7 @@ wire [`ENGINE_NUM-1:0] sgd_execution_done;
 wire [31:0] num_issued_mem_rd_reqs;
 
 
-// reg [57:0] addr_model;
+// reg [63:0] addr_model;
 // reg [31:0] mini_batch_size;
 // reg [31:0] step_size;
 // reg [31:0] number_of_epochs;
@@ -144,11 +144,8 @@ wire [31:0] num_issued_mem_rd_reqs;
 // reg [31:0] number_of_bits;
 
 always @(posedge clk) 
-begin
-    if(~rst_n_g) 
-        started <= 1'b0;
-    else if (start_um & (!started)) 
-        started <= 1'b1;
+begin  
+    started <= start_um;
 end
 
 
@@ -158,15 +155,13 @@ end
 /////////////////////////////////////////////////////////////////////////////////
 // always @(posedge clk) 
 // begin 
-//         addr_a           <= um_params[ 63:6  ]; //no need of [5:0], cache line aligned... Mohsen
-//         addr_b           <= um_params[127:70 ];
-//         addr_model       <= um_params[191:134];
-//         mini_batch_size  <= um_params[223:192];
-//         step_size        <= um_params[255:224];
-//         number_of_epochs <= um_params[287:256];
-//         dimension        <= um_params[319:288];    
-//         number_of_samples<= um_params[351:320];
-//         number_of_bits   <= um_params[383:352];    
+//         addr_model       <= addr_model_i;
+//         mini_batch_size  <= mini_batch_size_i;
+//         step_size        <= step_size_i;
+//         number_of_epochs <= number_of_epochs_i;
+//         dimension        <= dimension_i;    
+//         number_of_samples<= number_of_samples_i;
+//         number_of_bits   <= number_of_bits_i;    
 // end
 
 
@@ -224,10 +219,10 @@ wire                    writing_x_to_host_memory_done;
 //serial loss -->gradient
 wire signed                          [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0]; 
 wire                                        ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0];
-reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0]; 
-reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0]; 
-reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0];
-reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0];
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0]; 
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0]; 
+reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0];
 
 ///////////////////rd part of x//////////////////////
 wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr;

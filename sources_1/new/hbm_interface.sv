@@ -342,8 +342,10 @@ module hbm_interface(
 
     reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data;
     wire [`ENGINE_NUM*2-1:0][255:0]   dispatch_axb_b_data;
+    reg  [255:0]                      dispatch_axb_b_data_r;  
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en;
     wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
+    reg                               dispatch_axb_b_wr_en_r;
     wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
     wire                              almost_full;
 
@@ -386,19 +388,19 @@ module hbm_interface(
         //---------------------Memory Inferface----------------------------//
 
         //Read Address (Output)  
-        .m_axi_ARVALID(hbm_axi[i*2].arvalid) , //rd address valid
-        .m_axi_ARADDR(hbm_axi[i*2].araddr)  , //rd byte address
-        .m_axi_ARID(hbm_axi[i*2].arid)    , //rd address id
-        .m_axi_ARLEN(hbm_axi[i*2].arlen)  , //rd burst=awlen+1,
-        .m_axi_ARSIZE(hbm_axi[i*2].arsize)  , //rd 3'b101, 32B
-        .m_axi_ARBURST(hbm_axi[i*2].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
-        .m_axi_ARLOCK(hbm_axi[i*2].arlock)  , //rd no
-        .m_axi_ARCACHE(hbm_axi[i*2].arcache) , //rd no
-        .m_axi_ARPROT(hbm_axi[i*2].arprot)  , //rd no
-        .m_axi_ARQOS(hbm_axi[i*2].arqos)   , //rd no
-        .m_axi_ARREGION(hbm_axi[i*2].arregion), //rd no
+        .m_axi_ARVALID(hbm_axi[i*4].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*4].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*4].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*4].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*4].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*4].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*4].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*4].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*4].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*4].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*4].arregion), //rd no
         .m_axi_ARUSER()  ,
-        .m_axi_ARREADY(hbm_axi[i*2].arready),  //rd ready to accept address.
+        .m_axi_ARREADY(hbm_axi[i*4].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
         .rd_addr_cnt()
 
@@ -429,19 +431,19 @@ module hbm_interface(
         //---------------------Memory Inferface----------------------------//
 
         //Read Address (Output)  
-        .m_axi_ARVALID(hbm_axi[i*2+1].arvalid) , //rd address valid
-        .m_axi_ARADDR(hbm_axi[i*2+1].araddr)  , //rd byte address
-        .m_axi_ARID(hbm_axi[i*2+1].arid)    , //rd address id
-        .m_axi_ARLEN(hbm_axi[i*2+1].arlen)  , //rd burst=awlen+1,
-        .m_axi_ARSIZE(hbm_axi[i*2+1].arsize)  , //rd 3'b101, 32B
-        .m_axi_ARBURST(hbm_axi[i*2+1].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
-        .m_axi_ARLOCK(hbm_axi[i*2+1].arlock)  , //rd no
-        .m_axi_ARCACHE(hbm_axi[i*2+1].arcache) , //rd no
-        .m_axi_ARPROT(hbm_axi[i*2+1].arprot)  , //rd no
-        .m_axi_ARQOS(hbm_axi[i*2+1].arqos)   , //rd no
-        .m_axi_ARREGION(hbm_axi[i*2+1].arregion), //rd no
+        .m_axi_ARVALID(hbm_axi[i*4+1].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*4+1].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*4+1].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*4+1].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*4+1].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*4+1].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*4+1].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*4+1].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*4+1].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*4+1].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*4+1].arregion), //rd no
         .m_axi_ARUSER()  ,
-        .m_axi_ARREADY(hbm_axi[i*2+1].arready),  //rd ready to accept address.
+        .m_axi_ARREADY(hbm_axi[i*4+1].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
         .rd_addr_cnt()
 
@@ -464,12 +466,12 @@ module hbm_interface(
 
         //---------------------Input: External Memory rd response-----------------//
         //Read Data (input)
-        .m_axi_RVALID(hbm_axi[i*2].rvalid)  , //rd data valid
-        .m_axi_RDATA(hbm_axi[i*2].rdata)   , //rd data 
-        .m_axi_RLAST(hbm_axi[i*2].rlast)   , //rd data last
-        .m_axi_RID(hbm_axi[i*2].rid)     , //rd data id
-        .m_axi_RRESP(hbm_axi[i*2].rresp)   , //rd data status. 
-        .m_axi_RREADY(hbm_axi[i*2].rready)  ,
+        .m_axi_RVALID(hbm_axi[i*4].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*4].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*4].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*4].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*4].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*4].rready)  ,
 
         //banks = 8, bits_per_bank=64...
         //------------------Output: disptach resp data to a ofeach bank---------------//
@@ -502,12 +504,12 @@ module hbm_interface(
 
         //---------------------Input: External Memory rd response-----------------//
         //Read Data (input)
-        .m_axi_RVALID(hbm_axi[i*2+1].rvalid)  , //rd data valid
-        .m_axi_RDATA(hbm_axi[i*2+1].rdata)   , //rd data 
-        .m_axi_RLAST(hbm_axi[i*2+1].rlast)   , //rd data last
-        .m_axi_RID(hbm_axi[i*2+1].rid)     , //rd data id
-        .m_axi_RRESP(hbm_axi[i*2+1].rresp)   , //rd data status. 
-        .m_axi_RREADY(hbm_axi[i*2+1].rready)  ,
+        .m_axi_RVALID(hbm_axi[i*4+1].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*4+1].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*4+1].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*4+1].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*4+1].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*4+1].rready)  ,
 
         //banks = 8, bits_per_bank=64...
         //------------------Output: disptach resp data to a ofeach bank---------------//
@@ -636,6 +638,12 @@ module hbm_interface(
     //     end
     // end
 
+always @(posedge hbm_clk)begin
+    dispatch_axb_b_data_r               <= dispatch_axb_b_data[`ENGINE_NUM];
+    dispatch_axb_b_wr_en_r              <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+end
+
+
 sgd_top_bw #( 
     .DATA_WIDTH_IN               (4),
     .MAX_DIMENSION_BITS          (18)
@@ -665,8 +673,8 @@ sgd_top_bw #(
     .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-    .dispatch_axb_b_data                (dispatch_axb_b_data[`ENGINE_NUM]),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en[`ENGINE_NUM]),
+    .dispatch_axb_b_data                (dispatch_axb_b_data_r),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r),
     .dispatch_axb_b_almost_full         (),
     //---------------------Memory Inferface:write----------------------------//
     //cmd

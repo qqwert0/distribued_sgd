@@ -306,6 +306,17 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
 end
 endgenerate
 
+    wire                                        x_data_send_back_start_o;
+    wire[63:0]                                  x_data_send_back_addr_o;
+    wire[31:0]                                  x_data_send_back_length_o;
+
+    always @(posedge dma_clk)begin
+        x_data_send_back_start                  <= x_data_send_back_start_o;
+        x_data_send_back_addr                   <= x_data_send_back_addr_o;
+        x_data_send_back_length                 <= x_data_send_back_length_o;
+    end
+
+
 sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
     .clk                        (dma_clk),
     .rst_n                      (rst_n),
@@ -321,9 +332,9 @@ sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
     .x_to_mem_empty             (x_to_mem_empty),
     //---------------------Memory Inferface:write----------------------------//
     //cmd
-    .x_data_send_back_start     (x_data_send_back_start),
-    .x_data_send_back_addr      (x_data_send_back_addr),
-    .x_data_send_back_length    (x_data_send_back_length),
+    .x_data_send_back_start     (x_data_send_back_start_o),
+    .x_data_send_back_addr      (x_data_send_back_addr_o),
+    .x_data_send_back_length    (x_data_send_back_length_o),
 
     //data
     .x_data_out                 (x_data_out),
