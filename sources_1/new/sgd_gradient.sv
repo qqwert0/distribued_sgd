@@ -199,7 +199,8 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
 
 
     sgd_adder_tree #(
-        .TREE_DEPTH (`NUM_OF_BANKS_WIDTH) //2**3 = 8 
+        .TREE_DEPTH (`NUM_OF_BANKS_WIDTH), //2**3 = 8 
+        .TREE_TRI_DEPTH(`NUM_OF_BANKS_TRI_WIDTH)
     ) inst_acc_gradient_b (
         .clk              ( clk                     ),
         .rst_n            ( rst_n                   ),

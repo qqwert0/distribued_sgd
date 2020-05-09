@@ -459,7 +459,8 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     end 
     //1:::::::add tree which brings a 6-cycles latency. ...
     sgd_adder_tree #(
-        .TREE_DEPTH (`BIT_WIDTH_OF_BANK) //2**8 = 64 
+        .TREE_DEPTH (`BIT_WIDTH_OF_BANK), //2**8 = 64 
+        .TREE_TRI_DEPTH(`BIT_TRI_WIDTH_OF_BANK)
     ) inst_ax (
         .clk              ( clk                   ),
         .rst_n            ( rst_n                 ),
