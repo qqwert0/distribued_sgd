@@ -253,7 +253,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
         if(~rst_n) begin
             x_to_mem_wr_en_pre[i]                   <= 0;                    
         end
-        else if(rd_en_r[6] && (engine_index_r[6] == i))begin
+        else if(rd_en_r[4] && (engine_index_r[4] == i))begin
             x_to_mem_wr_en_pre[i]           <= 1'b1;
         end
         else begin
@@ -266,7 +266,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
             x_to_mem_wr_data_pre[i]                 <= 0;                  
         end
         else begin
-            case(inner_index_r[6])
+            case(inner_index_r[4])
                 2'b00:begin
                     x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][511:0];
                 end
@@ -306,6 +306,17 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
 end
 endgenerate
 
+    wire                                        x_data_send_back_start_o;
+    wire[63:0]                                  x_data_send_back_addr_o;
+    wire[31:0]                                  x_data_send_back_length_o;
+
+    always @(posedge dma_clk)begin
+        x_data_send_back_start                  <= x_data_send_back_start_o;
+        x_data_send_back_addr                   <= x_data_send_back_addr_o;
+        x_data_send_back_length                 <= x_data_send_back_length_o;
+    end
+
+
 sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
     .clk                        (dma_clk),
     .rst_n                      (rst_n),
@@ -321,9 +332,9 @@ sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
     .x_to_mem_empty             (x_to_mem_empty),
     //---------------------Memory Inferface:write----------------------------//
     //cmd
-    .x_data_send_back_start     (x_data_send_back_start),
-    .x_data_send_back_addr      (x_data_send_back_addr),
-    .x_data_send_back_length    (x_data_send_back_length),
+    .x_data_send_back_start     (x_data_send_back_start_o),
+    .x_data_send_back_addr      (x_data_send_back_addr_o),
+    .x_data_send_back_length    (x_data_send_back_length_o),
 
     //data
     .x_data_out                 (x_data_out),

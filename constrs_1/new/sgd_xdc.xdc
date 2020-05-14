@@ -29,7 +29,7 @@ set_property CONFIG_VOLTAGE 1.8 [current_design]
 #set_property PACKAGE_PIN AL15 [get_ports sys_clk_p]
 set_property LOC [get_package_pins -of_objects [get_bels [get_sites -filter {NAME =~ *COMMON*} -of_objects [get_iobanks -of_objects [get_sites GTYE4_CHANNEL_X1Y7]]]/REFCLK0P]] [get_ports sys_clk_p]
 set_property LOC [get_package_pins -of_objects [get_bels [get_sites -filter {NAME =~ *COMMON*} -of_objects [get_iobanks -of_objects [get_sites GTYE4_CHANNEL_X1Y7]]]/REFCLK0N]] [get_ports sys_clk_n]
-##
+##below not need, above sys100M no need
 #############################################################################################################
 #############################################################################################################
 #
@@ -64,20 +64,24 @@ set_false_path -from [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/
 set_false_path -from [get_ports sys_rst_n]
 #set_false_path -through [get_pins [list dma_driver_inst/pcie_aresetn inst_hbm_driver/hbm_rstn]]
 set_false_path -from [get_cells inst_hbm_interface/sgd_top_bw_inst/rst_n_reg_reg]
+set_false_path -from [get_cells inst_hbm_interface/sgd_top_bw_inst/started_reg]
 set_false_path -from [get_cells inst_hbm_driver/hbm_rstn_reg]
 set_false_path -from [get_cells dma_driver_inst/pcie_aresetn_reg]
 
-set_false_path -from [get_cells inst_hbm_interface/addr_a_reg*]
-set_false_path -from [get_cells inst_hbm_interface/addr_b_reg*]
-set_false_path -from [get_cells inst_hbm_interface/addr_model_reg*]
-set_false_path -from [get_cells inst_hbm_interface/mini_batch_size_reg*]
-set_false_path -from [get_cells inst_hbm_interface/step_size_reg*]
-set_false_path -from [get_cells inst_hbm_interface/number_of_epochs_reg*]
-set_false_path -from [get_cells inst_hbm_interface/dimension_reg*]
-set_false_path -from [get_cells inst_hbm_interface/number_of_samples_reg*]
-set_false_path -from [get_cells inst_hbm_interface/number_of_bits_reg*]
-set_false_path -from [get_cells inst_hbm_interface/data_a_length_reg*]
-set_false_path -from [get_cells inst_hbm_interface/array_length_reg*]
+set_false_path -from [get_cells inst_hbm_interface/addr_a_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/addr_b_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/addr_model_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/mini_batch_size_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/step_size_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/number_of_epochs_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/dimension_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/number_of_samples_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/number_of_bits_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/data_a_length_reg[*]]
+set_false_path -from [get_cells inst_hbm_interface/array_length_reg[*]]
 #set_false_path -from [get_cells inst_hbm_interface/channel_choice_reg*]
 
 
+create_pblock pblock_sgd_top_bw_inst
+resize_pblock pblock_sgd_top_bw_inst -add SLR1:SLR1
+add_cells_to_pblock pblock_sgd_top_bw_inst [get_cells [list inst_hbm_interface/sgd_top_bw_inst]]

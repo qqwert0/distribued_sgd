@@ -73,59 +73,12 @@ wire [`ENGINE_NUM-1:0][31:0] state_counters_x_wr;
 wire [31:0] state_counters_bank_0, state_counters_wr_x_to_memory, state_counters_dispatch;
 
 reg [5:0] counter_for_rst;
-reg rst_n_afu, rst_n_reg;
+reg rst_n_reg;
 
 always @(posedge clk) 
 begin
     rst_n_reg             <= rst_n;
-
-    rst_n_afu             <= (counter_for_rst == 6'b0);
 end
-
-always @(posedge clk) 
-begin
-    if (rst_n_reg & (~rst_n))
-        counter_for_rst             <= 6'h7;
-    else if (counter_for_rst != 6'b0)
-        counter_for_rst             <= counter_for_rst - 6'b1;
-end
-
-
-
-
-reg rst_n_g, rst_n_mem_rd, rst_n_dispatch, rst_n_x_updated_rd_wr;
-reg rst_n_x_wr, rst_n_wr_x_to_memory;
-reg rst_n_banks[`NUM_OF_BANKS-1:0];
-reg rst_n_adder_tree[`NUM_BITS_PER_BANK-1:0];
-
-always @(posedge clk) 
-begin
-    rst_n_g               <= rst_n; //rst_n_afu;//rst_n;
-    rst_n_mem_rd          <= rst_n; //rst_n_afu;
-    rst_n_dispatch        <= rst_n; //rst_n_afu;
-    rst_n_x_updated_rd_wr <= rst_n; //rst_n_afu;
-    rst_n_x_wr            <= rst_n; //rst_n_afu;
-    rst_n_wr_x_to_memory  <= rst_n; //rst_n_afu;
-end
-
-genvar k;
-generate for( k = 0; k < `NUM_OF_BANKS; k = k + 1)
-begin: inst_banks_rst 
-always @(posedge clk) 
-begin
-    rst_n_banks[k]            <= rst_n; //rst_n_afu;
-end
-end 
-endgenerate
-
-generate for( k = 0; k < `NUM_BITS_PER_BANK; k = k + 1)
-begin: inst_adder_tree_rst 
-always @(posedge clk) 
-begin
-    rst_n_adder_tree[k]       <= rst_n; //rst_n_afu;
-end
-end 
-endgenerate
 
 
 
@@ -135,7 +88,7 @@ wire [`ENGINE_NUM-1:0] sgd_execution_done;
 wire [31:0] num_issued_mem_rd_reqs;
 
 
-// reg [57:0] addr_model;
+// reg [63:0] addr_model;
 // reg [31:0] mini_batch_size;
 // reg [31:0] step_size;
 // reg [31:0] number_of_epochs;
@@ -144,11 +97,8 @@ wire [31:0] num_issued_mem_rd_reqs;
 // reg [31:0] number_of_bits;
 
 always @(posedge clk) 
-begin
-    if(~rst_n_g) 
-        started <= 1'b0;
-    else if (start_um & (!started)) 
-        started <= 1'b1;
+begin  
+    started <= start_um;
 end
 
 
@@ -158,15 +108,13 @@ end
 /////////////////////////////////////////////////////////////////////////////////
 // always @(posedge clk) 
 // begin 
-//         addr_a           <= um_params[ 63:6  ]; //no need of [5:0], cache line aligned... Mohsen
-//         addr_b           <= um_params[127:70 ];
-//         addr_model       <= um_params[191:134];
-//         mini_batch_size  <= um_params[223:192];
-//         step_size        <= um_params[255:224];
-//         number_of_epochs <= um_params[287:256];
-//         dimension        <= um_params[319:288];    
-//         number_of_samples<= um_params[351:320];
-//         number_of_bits   <= um_params[383:352];    
+//         addr_model       <= addr_model_i;
+//         mini_batch_size  <= mini_batch_size_i;
+//         step_size        <= step_size_i;
+//         number_of_epochs <= number_of_epochs_i;
+//         dimension        <= dimension_i;    
+//         number_of_samples<= number_of_samples_i;
+//         number_of_bits   <= number_of_bits_i;    
 // end
 
 
@@ -178,13 +126,13 @@ end
 //reg [63:0] num_issued_mem_rd_reqs;
 reg [31:0] num_received_rds;
 reg [63:0] num_cycles;
-always @(posedge clk) 
-begin
-    if(~rst_n_g) 
-        num_cycles <= 1'b0;
-    else if ( (~done) & started ) 
-        num_cycles <= num_cycles + 1'b1;
-end
+//always @(posedge clk) 
+//begin
+//    if(~rst_n_g) 
+//        num_cycles <= 1'b0;
+//    else if ( (~done) & started ) 
+//        num_cycles <= num_cycles + 1'b1;
+//end
 
 
 
@@ -200,13 +148,13 @@ assign um_done = done;
 // end
 
 
-always @(posedge clk) 
-begin 
-    if(~rst_n_g) 
-        done           <= 1'h0;
-    else //if ( mem_op_done  & (num_received_rds == num_issued_mem_rd_reqs) & sgd_execution_done )
-        done           <=  sgd_execution_done[0]; //1'h1; ( mem_op_done  & (num_received_rds == num_issued_mem_rd_reqs) & )
-end
+//always @(posedge clk) 
+//begin 
+//    if(~rst_n_g) 
+//        done           <= 1'h0;
+//    else //if ( mem_op_done  & (num_received_rds == num_issued_mem_rd_reqs) & sgd_execution_done )
+//        done           <=  sgd_execution_done[0]; //1'h1; ( mem_op_done  & (num_received_rds == num_issued_mem_rd_reqs) & )
+//end
 
 
 
@@ -224,10 +172,10 @@ wire                    writing_x_to_host_memory_done;
 //serial loss -->gradient
 wire signed                          [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0]; 
 wire                                        ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0];
-reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0]; 
-reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0]; 
-reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1][`NUM_OF_BANKS-1:0];
-reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1][`NUM_OF_BANKS-1:0];
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0]; 
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0]; 
+reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0];
 
 ///////////////////rd part of x//////////////////////
 wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr;
@@ -419,16 +367,16 @@ reg           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr_r1,x_mem_rd_addr_r2,x_mem_rd_
 
 always @(posedge clk)begin
     x_mem_rd_addr_r1            <= x_mem_rd_addr;
-    x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
+    // x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
     // x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
     x_updated_rd_data_r1[i]     <= x_updated_rd_data[i];
     x_updated_rd_data_r2[i]     <= x_updated_rd_data_r1[i];
     // x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
-    x_updated_rd_addr_r1[i]     <= x_updated_rd_addr[i];
-    x_updated_rd_addr_r2[i]     <= x_updated_rd_addr_r1[i];
+    // x_updated_rd_addr_r1[i]     <= x_updated_rd_addr[i];
+    // x_updated_rd_addr_r2[i]     <= x_updated_rd_addr_r1[i];
 end
 
-assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r2 : x_batch_rd_addr[i];
+assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r1 : x_batch_rd_addr[i];
 
 //Compute the wr_counter to make sure ...add reigster to any rd/wr ports. 
 blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
@@ -438,7 +386,7 @@ blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),
     .data      ( x_updated_wr_data  ),
     .wraddress ( x_updated_wr_addr  ),
     .wren      ( x_updated_wr_en    ),
-    .rdaddress ( x_updated_rd_addr_r2[i]), 
+    .rdaddress ( x_updated_rd_addr[i]), 
     .q         ( x_updated_rd_data[i]  )
 );
 

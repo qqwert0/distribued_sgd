@@ -38,7 +38,7 @@ module sgd_dot_product (
     //------------------Input: disptach resp data to a of each bank---------------//
     input [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0]   dispatch_axb_a_data, //512. 
     input                                          dispatch_axb_a_wr_en, 
-    output wire                                    dispatch_axb_a_almost_full, 
+    output reg                                     dispatch_axb_a_almost_full, 
     //------------------Input: x ---------------//
     //input                                  [x:0]  x,  
     input                                          writing_x_to_host_memory_done,  
@@ -81,7 +81,9 @@ reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_wr_data;
 reg  [1:0]                                       buffer_a_wr_en;
 wire [1:0]                                       buffer_a_almost_full;
 reg  [1:0]                                       buffer_a_choice;
-assign dispatch_axb_a_almost_full = buffer_a_almost_full[0] || buffer_a_almost_full[1] ; //output...
+always @(posedge clk) begin
+    dispatch_axb_a_almost_full <= buffer_a_almost_full[0] || buffer_a_almost_full[1] ; //output...
+end
 
 always @(posedge clk) begin
     dispatch_axb_a_data_r       <= dispatch_axb_a_data;
@@ -118,6 +120,8 @@ wire [1:0]              [5:0] buffer_a_counter;
 reg  [1:0]                    buffer_a_rd_en;
 wire [1:0]                                       buffer_a_rd_data_valid_o;
 wire [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data_o;
+reg                                                 buffer_a_rd_data_valid_r,buffer_a_rd_data_valid_r1;
+reg  [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0]         buffer_a_rd_data_r;
 
 //on-chip buffer for a 
 distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
@@ -166,6 +170,9 @@ distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS),
 always @(posedge clk) begin
     buffer_a_rd_data_valid <= buffer_a_rd_data_valid_o[0] | buffer_a_rd_data_valid_o[1];
     buffer_a_rd_data <= buffer_a_rd_data_valid_o[0] ? buffer_a_rd_data_o[0] : buffer_a_rd_data_o[1];
+    buffer_a_rd_data_valid_r <= buffer_a_rd_data_valid;
+    buffer_a_rd_data_valid_r1 <= buffer_a_rd_data_valid_r;
+    buffer_a_rd_data_r <= buffer_a_rd_data;    
 end
 
 reg [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data_r;
@@ -417,21 +424,22 @@ end
 reg  signed        a_input[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //     8*64
 reg  signed [31:0] x_input[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //32b* 8*64
 
-reg  signed        add_tree_in_valid[`NUM_OF_BANKS-1:0]; //32b* 8*64
-wire signed [31:0] add_tree_in[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //32b* 8*64
+reg  signed        add_tree_in_valid[`NUM_OF_BANKS-1:0],add_tree_in_valid_pre[`NUM_OF_BANKS-1:0]; //32b* 8*64
+reg  signed [31:0] add_tree_in[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //32b* 8*64
 
 wire signed [31:0] add_tree_out[`NUM_OF_BANKS-1:0]; //32b* 8*64
 wire signed        add_tree_out_valid[`NUM_OF_BANKS-1:0]; //32b* 8*64
 
 wire signed           [35:0] add_tree_out_shift_wire[`NUM_OF_BANKS-1:0]; //more precisin for the accumulator.
 
-reg signed            [35:0] add_tree_out_shift[`NUM_OF_BANKS-1:0]; //more precisin for the accumulator.
-reg                          add_tree_out_shift_valid[`NUM_OF_BANKS-1:0];
+reg signed            [35:0] add_tree_out_shift[`NUM_OF_BANKS-1:0],add_tree_out_shift_r[`NUM_OF_BANKS-1:0]; //more precisin for the accumulator.
+reg                          add_tree_out_shift_valid[`NUM_OF_BANKS-1:0],add_tree_out_shift_valid_r[`NUM_OF_BANKS-1:0];
+reg                          add_tree_out_shift_zero_flag[`NUM_OF_BANKS-1:0];
 reg                   [ 4:0] d_numBits_index[`NUM_OF_BANKS-1:0];
 reg                   [11:0] chunk_index[`NUM_OF_BANKS-1:0];
 
-reg                          ax_dot_product_valid_pre[`NUM_OF_BANKS-1:0];
-reg                          adder_tree_first_bit_en[`NUM_OF_BANKS-1:0];
+reg                          ax_dot_product_valid_pre[`NUM_OF_BANKS-1:0],ax_dot_product_valid_pre1[`NUM_OF_BANKS-1:0];
+reg                          adder_tree_first_bit_en[`NUM_OF_BANKS-1:0],adder_tree_first_bit_en_r[`NUM_OF_BANKS-1:0];
 
 reg signed            [35:0] ax_dot_product[`NUM_OF_BANKS-1:0];
 reg                          ax_dot_product_valid[`NUM_OF_BANKS-1:0];
@@ -443,21 +451,24 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_stage_input 
         always @(posedge clk) 
         begin 
-            a_input[i][j]     <= buffer_a_rd_data[`NUM_BITS_PER_BANK*i+j]; //1 bit
+            a_input[i][j]     <= buffer_a_rd_data_r[`NUM_BITS_PER_BANK*i+j]; //1 bit
             x_input[i][j]     <= x_rd_data_r[32*(j+1)-1:32*j]; // 
         end 
     end
     for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_at_input
-        assign add_tree_in[i][j] = (a_input[i][j] == 1'b1)? x_input[i][j]:32'b0;
+        always @(posedge clk)
+            add_tree_in[i][j] <= (a_input[i][j] == 1'b1)? x_input[i][j]:32'b0;
     end
     //0:::::::Pre at input data valid ...
     always @(posedge clk) 
     begin 
-        add_tree_in_valid[i]    <= buffer_a_rd_data_valid;
+        add_tree_in_valid_pre[i]<= buffer_a_rd_data_valid_r;
+        add_tree_in_valid[i]    <= add_tree_in_valid_pre[i];
     end 
     //1:::::::add tree which brings a 6-cycles latency. ...
     sgd_adder_tree #(
-        .TREE_DEPTH (`BIT_WIDTH_OF_BANK) //2**8 = 64 
+        .TREE_DEPTH (`BIT_WIDTH_OF_BANK), //2**8 = 64 
+        .TREE_TRI_DEPTH(`BIT_TRI_WIDTH_OF_BANK)
     ) inst_ax (
         .clk              ( clk                   ),
         .rst_n            ( rst_n                 ),
@@ -489,22 +500,22 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
             5'h0d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 14);
             5'h0e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 15);
             5'h0f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 16);
-            5'h10: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 17);
-            5'h11: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 18);
-            5'h12: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 19);
-            5'h13: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 20);
-            5'h14: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 21);
-            5'h15: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 22);
-            5'h16: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 23);
-            5'h17: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 24);
-            5'h18: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 25);
-            5'h19: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 26);
-            5'h1a: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 27);
-            5'h1b: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 28);
-            5'h1c: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 29);
-            5'h1d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 30);
-            5'h1e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 31);
-            5'h1f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 32);
+            // 5'h10: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 17);
+            // 5'h11: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 18);
+            // 5'h12: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 19);
+            // 5'h13: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 20);
+            // 5'h14: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 21);
+            // 5'h15: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 22);
+            // 5'h16: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 23);
+            // 5'h17: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 24);
+            // 5'h18: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 25);
+            // 5'h19: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 26);
+            // 5'h1a: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 27);
+            // 5'h1b: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 28);
+            // 5'h1c: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 29);
+            // 5'h1d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 30);
+            // 5'h1e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 31);
+            // 5'h1f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 32);
         endcase 
         
         //add_tree_out_shift[i]          <= ( add_tree_out_shift_wire[i] >>> 3 ); //(d_numBits_index+5'b1)
@@ -541,15 +552,25 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
         end 
     end
 
+    always @(posedge clk)
+        add_tree_out_shift_zero_flag[i]     <= (add_tree_out_shift[i][35:0] == 36'hfffffffff);
+            
     always @(posedge clk) begin
-        ax_dot_product_valid[i]             <= ax_dot_product_valid_pre[i];
-        if (add_tree_out_shift_valid[i])       //part of the result coming...
+        ax_dot_product_valid_pre1[i]        <= ax_dot_product_valid_pre[i];
+        add_tree_out_shift_valid_r[i]       <= add_tree_out_shift_valid[i];
+        adder_tree_first_bit_en_r[i]        <= adder_tree_first_bit_en[i];
+        add_tree_out_shift_r[i]             <= add_tree_out_shift[i];
+    end            
+
+    always @(posedge clk) begin
+        ax_dot_product_valid[i]             <= ax_dot_product_valid_pre1[i];
+        if (add_tree_out_shift_valid_r[i])       //part of the result coming...
         begin
             //compute the dot product result...
-            if ( adder_tree_first_bit_en[i] ) //first of vector
-                ax_dot_product[i]           <= add_tree_out_shift[i] + 36'hb;
+            if ( adder_tree_first_bit_en_r[i] ) //first of vector
+                ax_dot_product[i]           <= add_tree_out_shift_r[i] + 36'hb;
             else                                        //add  
-                ax_dot_product[i]           <= ax_dot_product[i] +  ( (add_tree_out_shift[i][35:0] == 36'hfffffffff)? 36'h0:add_tree_out_shift[i] ); //add_tree_out_shift[i] ;//
+                ax_dot_product[i]           <= ax_dot_product[i] +  ( add_tree_out_shift_zero_flag[i])? 36'h0:add_tree_out_shift_r[i] ; //add_tree_out_shift[i] ;//
         end
     end
 

@@ -387,10 +387,13 @@ endinterface
 //////////////////////////Start of BANK///////////////////////////////////
 `define NUM_OF_BANKS             8
 `define NUM_OF_BANKS_WIDTH       3
+`define NUM_OF_BANKS_TRI_WIDTH   2
 `define NUM_BITS_PER_BANK        `NUM_BITS_PER_CL/`NUM_OF_BANKS
 `define BIT_WIDTH_OF_BANK        9-`NUM_OF_BANKS_WIDTH
-`define ENGINE_NUM               8
-`define ENGINE_NUM_WIDTH         3
+`define BIT_TRI_WIDTH_OF_BANK    4
+`define ENGINE_NUM               4
+`define ENGINE_NUM_WIDTH         2
+`define ENGINE_NUM_TRI_WIDTH     2
 `define B_DATA_CHANNEL           `ENGINE_NUM
 //////////////////////////End of Bank///////////////////////////////////
 
@@ -401,7 +404,7 @@ endinterface
 `define X_BIT_DEPTH              9
 `define NUM_BITS_FOR_X           32
 `define MAX_BIT_WIDTH_OF_X       16 //9:depth(512), 6:width(64), 1: extra
-`define DIS_X_BIT_DEPTH          9//`X_BIT_DEPTH - `ENGINE_NUM_WIDTH
+`define DIS_X_BIT_DEPTH          10//`X_BIT_DEPTH - `ENGINE_NUM_WIDTH
 //////////////////////////End of Model///////////////////////////////////
 
 `define A_FIFO_DEPTH_BITS       11 //2^A_FIFO_DEPTH_BITS-depth fifo for training dataset. can not be large.

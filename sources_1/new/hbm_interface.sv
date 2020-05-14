@@ -342,8 +342,10 @@ module hbm_interface(
 
     reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data;
     wire [`ENGINE_NUM*2-1:0][255:0]   dispatch_axb_b_data;
+    reg  [255:0]                      dispatch_axb_b_data_r;  
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en;
     wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
+    reg                               dispatch_axb_b_wr_en_r;
     wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
     wire                              almost_full;
 
@@ -636,6 +638,12 @@ module hbm_interface(
     //     end
     // end
 
+always @(posedge hbm_clk)begin
+    dispatch_axb_b_data_r               <= dispatch_axb_b_data[`ENGINE_NUM];
+    dispatch_axb_b_wr_en_r              <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+end
+
+
 sgd_top_bw #( 
     .DATA_WIDTH_IN               (4),
     .MAX_DIMENSION_BITS          (18)
@@ -665,8 +673,8 @@ sgd_top_bw #(
     .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-    .dispatch_axb_b_data                (dispatch_axb_b_data[`ENGINE_NUM]),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en[`ENGINE_NUM]),
+    .dispatch_axb_b_data                (dispatch_axb_b_data_r),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r),
     .dispatch_axb_b_almost_full         (),
     //---------------------Memory Inferface:write----------------------------//
     //cmd

@@ -22,7 +22,9 @@
 
 module sgd_adder_tree #(
     parameter TREE_DEPTH          = 3,
-    parameter TREE_WIDTH          = 2**TREE_DEPTH//8//TREE_DEPTH**2 //
+    parameter TREE_WIDTH          = 2**TREE_DEPTH,//8//TREE_DEPTH**2 //
+    parameter TREE_TRI_DEPTH      = 2,
+    parameter TREE_TRI_WIDTH      = 3**TREE_TRI_DEPTH
 )(
     input   wire                                   clk,
     input   wire                                   rst_n,
@@ -40,20 +42,36 @@ module sgd_adder_tree #(
 
 
 
-reg  signed [31:0]  v_intermdiate_result[TREE_DEPTH-1:0][TREE_WIDTH-1:0];
-reg                 v_intermdiate_result_valid[TREE_DEPTH-1:0];
+reg  signed [31:0]  v_intermdiate_result[TREE_TRI_DEPTH-1:0][TREE_TRI_WIDTH/3-1:0];
+reg                 v_intermdiate_result_valid[TREE_TRI_DEPTH-1:0];
+
+reg  signed                    [31:0] v_input_i[TREE_TRI_WIDTH-1:0];
 
 
 genvar d, w, b; 
 generate 
-    for( d = 0; d < TREE_DEPTH; d = d + 1) begin: inst_adder_tree_depth 
-        for( w = 0; w < ( TREE_WIDTH/(2**(d+1)) ); w = w + 1) begin: inst_adder_tree_width
+    for(b = 0; b < TREE_TRI_WIDTH; b = b+1)begin
+    reg              input_flag;
+        always @(posedge clk)begin
+            if(b >TREE_WIDTH)
+                input_flag                        <= 1;
+            else
+                input_flag                        <= 0;
+        end
+        assign v_input_i[b] = input_flag?0:v_input[b];
+       
+    end
+endgenerate
+
+generate 
+    for( d = 0; d < TREE_TRI_DEPTH; d = d + 1) begin: inst_adder_tree_depth 
+        for( w = 0; w < ( TREE_TRI_WIDTH/(3**(d+1)) ); w = w + 1) begin: inst_adder_tree_width
             always @(posedge clk) begin
                 if(d == 0) begin
-                    v_intermdiate_result[d][w]     <= v_input[2*w] + v_input[2*w+1];
+                    v_intermdiate_result[d][w]     <= v_input_i[3*w] + v_input_i[3*w+1] + v_input_i[3*w+2];
                 end 
                 else begin
-                    v_intermdiate_result[d][w]     <= v_intermdiate_result[d-1][2*w] + v_intermdiate_result[d-1][2*w+1];
+                    v_intermdiate_result[d][w]     <= v_intermdiate_result[d-1][3*w] + v_intermdiate_result[d-1][3*w+1] + v_intermdiate_result[d-1][3*w+2];
                 end
             end 
         end
@@ -61,7 +79,7 @@ generate
 endgenerate
 
 generate 
-    for( d = 0; d < TREE_DEPTH; d = d + 1) begin: inst_adder_tree_valid 
+    for( d = 0; d < TREE_TRI_DEPTH; d = d + 1) begin: inst_adder_tree_valid 
 
     always @(posedge clk) 
     begin 
@@ -100,8 +118,8 @@ begin
      end
 end
 */
-assign v_output       = v_intermdiate_result[TREE_DEPTH-1][0]; 
-assign v_output_valid = v_intermdiate_result_valid[TREE_DEPTH-1]; 
+assign v_output       = v_intermdiate_result[TREE_TRI_DEPTH-1][0]; 
+assign v_output_valid = v_intermdiate_result_valid[TREE_TRI_DEPTH-1]; 
 
 
 

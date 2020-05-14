@@ -151,7 +151,8 @@ for(k = 0; k < `NUM_OF_BANKS; k++) begin
     end
 /////////////////////add engine///////
     sgd_adder_tree #(
-        .TREE_DEPTH (`ENGINE_NUM_WIDTH) //2**8 = 64 
+        .TREE_DEPTH (`ENGINE_NUM_WIDTH), //2**8 = 64 
+        .TREE_TRI_DEPTH(`ENGINE_NUM_TRI_WIDTH)
     ) inst_ax (
         .clk              ( clk                   ),
         .rst_n            ( rst_n                 ), 

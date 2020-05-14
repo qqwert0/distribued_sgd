@@ -149,13 +149,14 @@ wire signed   [31:0] acc_gradient_b[`NUM_BITS_PER_BANK-1:0];
 wire                 acc_gradient_b_valid[`NUM_BITS_PER_BANK-1:0];
 
 //////////Accumulate the gradient. /////////////
-reg                  acc_gradient_shift_valid_pre[`NUM_BITS_PER_BANK-1:0];
-reg                  acc_gradient_first_bit_en[`NUM_BITS_PER_BANK-1:0];
+reg                  acc_gradient_shift_valid_pre[`NUM_BITS_PER_BANK-1:0],acc_gradient_shift_valid_pre1[`NUM_BITS_PER_BANK-1:0];
+reg                  acc_gradient_first_bit_en[`NUM_BITS_PER_BANK-1:0],acc_gradient_first_bit_en_r[`NUM_BITS_PER_BANK-1:0];
 
 
 wire signed   [35:0] acc_gradient_b_shift_wire[`NUM_BITS_PER_BANK-1:0];
-reg  signed   [35:0] acc_gradient_b_shift[`NUM_BITS_PER_BANK-1:0];
-reg                  acc_gradient_b_shift_valid[`NUM_BITS_PER_BANK-1:0];
+reg  signed   [35:0] acc_gradient_b_shift[`NUM_BITS_PER_BANK-1:0],acc_gradient_b_shift_r[`NUM_BITS_PER_BANK-1:0];
+reg                  acc_gradient_b_shift_valid[`NUM_BITS_PER_BANK-1:0],acc_gradient_b_shift_valid_r[`NUM_BITS_PER_BANK-1:0];
+reg                  acc_gradient_b_shift_zero_flag[`NUM_BITS_PER_BANK-1:0];
 reg signed    [35:0] acc_gradient_shift[`NUM_BITS_PER_BANK-1:0];
 reg                  acc_gradient_shift_valid[`NUM_BITS_PER_BANK-1:0];
 
@@ -177,7 +178,7 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     begin: inst_1_c
         always @(posedge clk) begin    
             v_loss[i][j]          <= loss[j];
-            v_a[i][j]             <= fifo_a_rd_data_r1[i+j*`NUM_BITS_PER_BANK];
+            v_a[i][j]             <= fifo_a_rd_data[i+j*`NUM_BITS_PER_BANK];
         end
     end
     always @(posedge clk) begin
@@ -189,22 +190,23 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     begin: inst_2_cycle
         always @(posedge clk) begin    
             v_gradient_b[i][j]    <= (v_a[i][j] == 1'b1)? v_loss[i][j]:32'b0;
-            v_gradient_b_r[i][j]  <= v_gradient_b[i][j];
+            // v_gradient_b_r[i][j]  <= v_gradient_b[i][j];
         end
     end
     always @(posedge clk) begin
         v_gradient_b_valid[i]     <= v_loss_valid[i];
-        v_gradient_b_valid_r[i]   <= v_gradient_b_valid[i];
+        // v_gradient_b_valid_r[i]   <= v_gradient_b_valid[i];
     end
 
 
     sgd_adder_tree #(
-        .TREE_DEPTH (`NUM_OF_BANKS_WIDTH) //2**3 = 8 
+        .TREE_DEPTH (`NUM_OF_BANKS_WIDTH), //2**3 = 8 
+        .TREE_TRI_DEPTH(`NUM_OF_BANKS_TRI_WIDTH)
     ) inst_acc_gradient_b (
         .clk              ( clk                     ),
         .rst_n            ( rst_n                   ),
-        .v_input          ( v_gradient_b_r[i]         ),
-        .v_input_valid    ( v_gradient_b_valid_r[i]   ),
+        .v_input          ( v_gradient_b[i]         ),
+        .v_input_valid    ( v_gradient_b_valid[i]   ),
         .v_output         ( acc_gradient_b[i]       ),   //output...
         .v_output_valid   ( acc_gradient_b_valid[i] ) 
     ); 
@@ -229,22 +231,22 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
             5'h0d: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>14);
             5'h0e: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>15);
             5'h0f: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>16);
-            5'h10: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>17);
-            5'h11: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>18);
-            5'h12: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>19);
-            5'h13: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>20);
-            5'h14: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>21);
-            5'h15: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>22);
-            5'h16: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>23);
-            5'h17: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>24);
-            5'h18: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>25);
-            5'h19: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>26);
-            5'h1a: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>27);
-            5'h1b: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>28);
-            5'h1c: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>29);
-            5'h1d: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>30);
-            5'h1e: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>31);
-            5'h1f: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>32);
+            // 5'h10: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>17);
+            // 5'h11: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>18);
+            // 5'h12: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>19);
+            // 5'h13: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>20);
+            // 5'h14: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>21);
+            // 5'h15: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>22);
+            // 5'h16: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>23);
+            // 5'h17: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>24);
+            // 5'h18: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>25);
+            // 5'h19: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>26);
+            // 5'h1a: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>27);
+            // 5'h1b: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>28);
+            // 5'h1c: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>29);
+            // 5'h1d: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>30);
+            // 5'h1e: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>31);
+            // 5'h1f: acc_gradient_b_shift[i]          <= (acc_gradient_b_shift_wire[i]>>>32);
         endcase 
         //acc_gradient_b_shift[i]          <= ( ({acc_gradient_b[i], 4'b0})>>>(d_numBits_index+5'b1) );
         acc_gradient_b_shift_valid[i]               <= acc_gradient_b_valid[i];
@@ -272,16 +274,28 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
             end
         end 
     end
+    
+    always @(posedge clk)
+        acc_gradient_b_shift_zero_flag[i]     <= (acc_gradient_b_shift[i][35:0] == 36'hfffffffff);
+            
+    always @(posedge clk) begin
+        acc_gradient_shift_valid_pre1[i]        <= acc_gradient_shift_valid_pre[i];
+        acc_gradient_b_shift_valid_r[i]       <= acc_gradient_b_shift_valid[i];
+        acc_gradient_first_bit_en_r[i]        <= acc_gradient_first_bit_en[i];
+        acc_gradient_b_shift_r[i]             <= acc_gradient_b_shift[i];
+    end                
+    
+    
     always @(posedge clk)
     begin
-        acc_gradient_shift_valid[i]             <= acc_gradient_shift_valid_pre[i];
-        if (acc_gradient_b_shift_valid[i])       //part of the result coming...
+        acc_gradient_shift_valid[i]             <= acc_gradient_shift_valid_pre1[i];
+        if (acc_gradient_b_shift_valid_r[i])       //part of the result coming...
         begin
             //compute the dot product result...
-            if ( acc_gradient_first_bit_en[i] ) //first of vector
-                acc_gradient_shift[i]           <= acc_gradient_b_shift[i] + 36'hb;
+            if ( acc_gradient_first_bit_en_r[i] ) //first of vector
+                acc_gradient_shift[i]           <= acc_gradient_b_shift_r[i] + 36'hb;
             else                                        //add  
-                acc_gradient_shift[i]           <= acc_gradient_shift[i] + ( (acc_gradient_b_shift[i][35:0] == 36'hfffffffff)? 36'h0:acc_gradient_b_shift[i] );//acc_gradient_b_shift[i] ; // 
+                acc_gradient_shift[i]           <= acc_gradient_shift[i] + ( (acc_gradient_b_shift_zero_flag[i])? 36'h0:acc_gradient_b_shift_r[i] );//acc_gradient_b_shift[i] ; // 
        end
     end
 //reg                  acc_gradient_shift_valid_pre[`NUM_BITS_PER_BANK-1:0];

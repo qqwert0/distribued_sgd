@@ -18,7 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "sgd_defines.vh"
 
 module hbm_write#(
     parameter ADDR_WIDTH      = 33 ,  // 8G-->33 bits
@@ -104,8 +104,8 @@ module hbm_write#(
 
     /*dma to hbm fifo*/
     //dam to hbm signal
-    wire                                    dma2hbm_fifo_wr_en;
-    wire [511:0]                            dma2hbm_fifo_data_in;
+    reg                                     dma2hbm_fifo_wr_en;
+    reg  [511:0]                            dma2hbm_fifo_data_in;
     wire                                    dma2hbm_fifo_rd_en;
     reg                                     dma2hbm_fifo_rd_en_d;
     wire                                    dma2hbm_fifo_full;
@@ -113,18 +113,20 @@ module hbm_write#(
     wire                                    dma2hbm_fifo_valid;
     wire [7:0]                              dma2hbm_fifo_count;
     wire [511:0]                            dma2hbm_fifo_data;
-    reg [255:0]                             dma2hbm_fifo_data_out;
+    reg [511:0]                             dma2hbm_fifo_data_out;
     reg                                     dma2hbm_fifo_rd_en_reg;
     reg                                     wdata_valid_reg;
-    reg                                     axi_data_flag;
+    reg                                     axi_data_flag,axi_data_flag_r;
 
 
 
     assign s_axis_dma_read_data.ready       = ~dma2hbm_fifo_full;
     assign dma2hbm_fifo_rd_en               = m_axi_WREADY & dma2hbm_fifo_rd_en_reg & ~axi_data_flag;
     
-    assign dma2hbm_fifo_wr_en               = s_axis_dma_read_data.ready & s_axis_dma_read_data.valid;
-    assign dma2hbm_fifo_data_in             = s_axis_dma_read_data.data;
+    always @(posedge hbm_clk)begin
+        dma2hbm_fifo_wr_en                  <= s_axis_dma_read_data.ready & s_axis_dma_read_data.valid;
+        dma2hbm_fifo_data_in                <= s_axis_dma_read_data.data;
+    end
 
 //    always @(posedge hbm_clk) begin
 //        if(s_axis_dma_read_data.ready & s_axis_dma_read_data.valid)
@@ -217,7 +219,7 @@ module hbm_write#(
 
     always @(posedge hbm_clk) begin
         if(dma2hbm_fifo_rd_en)
-            dma2hbm_fifo_data_out <= dma2hbm_fifo_data[511:256];
+            dma2hbm_fifo_data_out <= dma2hbm_fifo_data;
         else
             dma2hbm_fifo_data_out <= dma2hbm_fifo_data_out;
     end
@@ -225,10 +227,10 @@ module hbm_write#(
     assign m_axi_AWVALID                    = cstate[3] | cstate[6];
     assign m_axi_AWADDR                     = hbm_awaddr;
     assign m_axi_BREADY                     = 1'b1;    //always ready to accept data...
-    assign m_axi_WVALID                     = dma2hbm_fifo_rd_en || axi_data_flag;
+    assign m_axi_WVALID                     = wdata_valid_reg || axi_data_flag_r;
     assign m_axi_WLAST                      = (burst_inc==m_axi_AWLEN)& m_axi_WVALID &m_axi_WREADY;
 
-    assign m_axi_WDATA                      = axi_data_flag ? dma2hbm_fifo_data_out : dma2hbm_fifo_data[255:0];
+    assign m_axi_WDATA                      = axi_data_flag ? dma2hbm_fifo_data_out[511:256] : dma2hbm_fifo_data_out[255:0];
 
 
 
@@ -422,17 +424,17 @@ module hbm_write#(
     reg                                     wr_data_done;
 
 
-    // always @(posedge hbm_clk) begin
-    //     if(~hbm_aresetn) begin
-    //         wdata_valid_reg     <= 1'b0;
-    //     end
-    //     else if(m_axi_WREADY) begin
-    //         wdata_valid_reg     <= dma2hbm_fifo_rd_en;                 
-    //     end
-    //     else begin
-    //         wdata_valid_reg     <= wdata_valid_reg;
-    //     end
-    // end
+    always @(posedge hbm_clk) begin
+        if(~hbm_aresetn) begin
+            wdata_valid_reg     <= 1'b0;
+        end
+        else if(m_axi_WREADY) begin
+            wdata_valid_reg     <= dma2hbm_fifo_rd_en;                 
+        end
+        else begin
+            wdata_valid_reg     <= wdata_valid_reg;
+        end
+    end
 
 
     always @(posedge hbm_clk) begin
@@ -473,10 +475,17 @@ module hbm_write#(
     always @(posedge hbm_clk)begin
         if(~hbm_aresetn)
             axi_data_flag                   <= 1'b0;
-        else if(m_axi_WVALID & m_axi_WREADY)
-            axi_data_flag                   <= ~axi_data_flag;   
+        else if(dma2hbm_fifo_rd_en & m_axi_WREADY)
+            axi_data_flag                   <= 1'b1;   
+        else if(axi_data_flag & m_axi_WREADY)
+            axi_data_flag                   <= 1'b0;
         else
             axi_data_flag                   <= axi_data_flag;
+    end
+
+    always @(posedge hbm_clk)begin
+        axi_data_flag_r                     <= axi_data_flag;
+
     end
 
 
