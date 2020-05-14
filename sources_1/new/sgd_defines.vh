@@ -404,7 +404,11 @@ endinterface
 `define X_BIT_DEPTH              9
 `define NUM_BITS_FOR_X           32
 `define MAX_BIT_WIDTH_OF_X       16 //9:depth(512), 6:width(64), 1: extra
+<<<<<<< HEAD
 `define DIS_X_BIT_DEPTH          10//`X_BIT_DEPTH - `ENGINE_NUM_WIDTH
+=======
+`define DIS_X_BIT_DEPTH          12//`X_BIT_DEPTH - `ENGINE_NUM_WIDTH
+>>>>>>> 80d2a861038a52e0a9f9838ed160ad2e0202dae1
 //////////////////////////End of Model///////////////////////////////////
 
 `define A_FIFO_DEPTH_BITS       11 //2^A_FIFO_DEPTH_BITS-depth fifo for training dataset. can not be large.

@@ -31,7 +31,7 @@ module sgd_adder_tree #(
     //--------------------------Begin/Stop-----------------------------//
 
     //---------------------Input: External Memory rd response-----------------//
-    input   wire  signed                    [31:0] v_input[TREE_WIDTH-1:0],       //
+    input   wire  signed                    [31:0] v_input[TREE_TRI_WIDTH-1:0],       //
     input   wire                                   v_input_valid,  //
 
     //------------------Output: disptach resp data to b of each bank---------------//
@@ -44,12 +44,16 @@ module sgd_adder_tree #(
 
 reg  signed [31:0]  v_intermdiate_result[TREE_TRI_DEPTH-1:0][TREE_TRI_WIDTH/3-1:0];
 reg                 v_intermdiate_result_valid[TREE_TRI_DEPTH-1:0];
+<<<<<<< HEAD
 
 reg  signed                    [31:0] v_input_i[TREE_TRI_WIDTH-1:0];
+=======
+>>>>>>> 80d2a861038a52e0a9f9838ed160ad2e0202dae1
 
 
 genvar d, w, b; 
 generate 
+<<<<<<< HEAD
     for(b = 0; b < TREE_TRI_WIDTH; b = b+1)begin
     reg              input_flag;
         always @(posedge clk)begin
@@ -64,11 +68,17 @@ generate
 endgenerate
 
 generate 
+=======
+>>>>>>> 80d2a861038a52e0a9f9838ed160ad2e0202dae1
     for( d = 0; d < TREE_TRI_DEPTH; d = d + 1) begin: inst_adder_tree_depth 
         for( w = 0; w < ( TREE_TRI_WIDTH/(3**(d+1)) ); w = w + 1) begin: inst_adder_tree_width
             always @(posedge clk) begin
                 if(d == 0) begin
+<<<<<<< HEAD
                     v_intermdiate_result[d][w]     <= v_input_i[3*w] + v_input_i[3*w+1] + v_input_i[3*w+2];
+=======
+                    v_intermdiate_result[d][w]     <= v_input[3*w] + v_input[3*w+1] + v_input[3*w+2];
+>>>>>>> 80d2a861038a52e0a9f9838ed160ad2e0202dae1
                 end 
                 else begin
                     v_intermdiate_result[d][w]     <= v_intermdiate_result[d-1][3*w] + v_intermdiate_result[d-1][3*w+1] + v_intermdiate_result[d-1][3*w+2];
