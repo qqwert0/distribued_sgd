@@ -28,14 +28,17 @@ module sgd_top(
     input wire[15 : 0]  pcie_rx_p,
     input wire[15 : 0]  pcie_rx_n,
 
-    input wire					 sys_clk_p,
-    input wire					 sys_clk_n,
-    input wire					 sys_rst_n,
+    input wire				sys_clk_p,
+    input wire				sys_clk_n,
+    input wire				sys_rst_n,
 
-	output wire					led,
+	output wire				led,
 
-     input wire           sys_100M_p,
-     input wire           sys_100M_n
+     input wire           	hbm_100M_p,
+     input wire           	hbm_100M_n,
+
+     input wire     		sys_100M_p,
+	 input wire				sys_100M_n     
     );
     
 	assign led = 1'b0;
@@ -50,22 +53,38 @@ wire sys_clk_100M;
 wire user_clk;
 wire user_aresetn;
 
+  user_clk inst_user_clk
+   (
+    // Clock out ports
+    .clk_out1(user_clk),     // output clk_out1
+    // Status and control signals
+    .reset(0), // input reset
+    .locked(user_aresetn),       // output locked
+   // Clock in ports
+    .clk_in1_p(sys_100M_p),    // input clk_in1_p
+    .clk_in1_n(sys_100M_n));    // input clk_in1_n
 
-
+// HBM logic clock
+wire hbm_100M;
+wire hbm_clk_100M;
 
      IBUFDS #(
        .IBUF_LOW_PWR("TRUE")     // Low power="TRUE", Highest performance="FALSE" 
     ) IBUFDS0_inst (
-       .O(sys_100M),  // Buffer output
-       .I(sys_100M_p),  // Diff_p buffer input (connect directly to top-level port)
-       .IB(sys_100M_n) // Diff_n buffer input (connect directly to top-level port)
+       .O(hbm_100M),  // Buffer output
+       .I(hbm_100M_p),  // Diff_p buffer input (connect directly to top-level port)
+       .IB(hbm_100M_n) // Diff_n buffer input (connect directly to top-level port)
     );
  
    
       BUFG BUFG0_inst (
-       .O(sys_clk_100M), // 1-bit output: Clock output
-       .I(sys_100M)  // 1-bit input: Clock input
+       .O(hbm_clk_100M), // 1-bit output: Clock output
+       .I(hbm_100M)  // 1-bit input: Clock input
     );
+
+//user clk
+
+
 
 
 // DMA Signals
@@ -253,7 +272,7 @@ wire            hbm_rstn;
 
 hbm_driver inst_hbm_driver(
 
-    .sys_clk_100M(sys_clk_100M),
+    .sys_clk_100M(hbm_clk_100M),
     .hbm_axi(hbm_axi),
     .hbm_clk(hbm_clk),
     .hbm_rstn(hbm_rstn)
@@ -261,12 +280,14 @@ hbm_driver inst_hbm_driver(
 
 
 hbm_interface inst_hbm_interface(
-    .user_clk(pcie_clk),
-    .user_aresetn(pcie_aresetn),
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
 
     .hbm_clk(hbm_clk),
     .hbm_rstn(hbm_rstn),
 
+    .dma_clk(pcie_clk),
+    .dma_aresetn(pcie_aresetn), 
     //mlweaving parameter
     .m_axis_mlweaving_valid(m_axis_mlweaving_valid),
     .m_axis_mlweaving_ready(m_axis_mlweaving_ready),

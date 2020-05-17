@@ -31,6 +31,7 @@ module sgd_top_bw #(parameter DATA_WIDTH_IN  = 4,
     input   wire                                   clk,
     input   wire                                   rst_n,
     input   wire                                   dma_clk,
+    input   wire                                   hbm_clk,
     //-------------------------------------------------//
     input   wire                                   start_um,
     // input   wire [511:0]                           um_params,
@@ -161,21 +162,30 @@ assign um_done = done;
 
 
 //dot product -->serial loss
-wire signed [`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0][31:0] dot_product_signed;      
-wire        [`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0]       dot_product_signed_valid;
- 
+wire signed [`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0][31:0]      dot_product_signed;      
+wire        [`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0]            dot_product_signed_valid;
+reg  signed [4:0][`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0][31:0] dot_product_signed_r;      
+reg         [4:0][`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0]       dot_product_signed_valid_r; 
 
 
 
-wire [`ENGINE_NUM-1:0] writing_x_to_host_memory_en;
-wire                    writing_x_to_host_memory_done;
+wire [`ENGINE_NUM-1:0]                      writing_x_to_host_memory_en;
+reg [4:0]                                   writing_x_to_host_memory_en_r;
+wire                                        writing_x_to_host_memory_done;
+reg [4:0][`ENGINE_NUM-1:0]                  writing_x_to_host_memory_done_r;
 //serial loss -->gradient
 wire signed                          [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0]; 
 wire                                        ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0];
 reg signed                          [31:0] ax_minus_b_sign_shifted_result_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0]; 
 reg signed                          [31:0] ax_minus_b_sign_shifted_result_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0]; 
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r3[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0]; 
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r4[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0];
+reg signed                          [31:0] ax_minus_b_sign_shifted_result_r5[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0];
 reg                                        ax_minus_b_sign_shifted_result_valid_r1[`ENGINE_NUM/4-1:0][`NUM_OF_BANKS-1:0];
 reg                                        ax_minus_b_sign_shifted_result_valid_r2[`ENGINE_NUM/2-1:0][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r3[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r4[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0];
+reg                                        ax_minus_b_sign_shifted_result_valid_r5[`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0];
 
 ///////////////////rd part of x//////////////////////
 wire  [`ENGINE_NUM-1:0]         [`DIS_X_BIT_DEPTH-1:0] x_updated_rd_addr;
@@ -328,7 +338,7 @@ end
     .x_rd_data                  (x_rd_data                  ),  
     //.x_rd_data_valid            (x_rd_data_valid          ),
     .x_wr_credit_counter        (x_wr_credit_counter        ),
-    .writing_x_to_host_memory_done(writing_x_to_host_memory_done),
+    .writing_x_to_host_memory_done(writing_x_to_host_memory_done_r[4][i]),
 
     //to 
     .buffer_a_rd_data_valid     (buffer_a_rd_data_valid     ),
@@ -337,6 +347,16 @@ end
     .dot_product_signed_valid   (dot_product_signed_valid[i]   ),
     .dot_product_signed         (dot_product_signed[i]         ) 
   );
+
+
+always @(posedge clk)begin
+    ax_minus_b_sign_shifted_result_valid_r3[i]          <= ax_minus_b_sign_shifted_result_valid_r2[i/2];
+    ax_minus_b_sign_shifted_result_valid_r4[i]          <= ax_minus_b_sign_shifted_result_valid_r3[i];
+    ax_minus_b_sign_shifted_result_valid_r5[i]          <= ax_minus_b_sign_shifted_result_valid_r4[i];
+    ax_minus_b_sign_shifted_result_r3[i]          <= ax_minus_b_sign_shifted_result_r2[i/2];
+    ax_minus_b_sign_shifted_result_r4[i]          <= ax_minus_b_sign_shifted_result_r3[i];
+    ax_minus_b_sign_shifted_result_r5[i]          <= ax_minus_b_sign_shifted_result_r4[i];    
+end
 
 
   sgd_gradient inst_sgd_gradient (
@@ -352,8 +372,8 @@ end
     .fifo_a_rd_en               (fifo_a_rd_en     ),
     .fifo_a_rd_data             (fifo_a_rd_data   ),
 
-    .ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid_r2[i/2] ),
-    .ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result_r2[i/2]      ), 
+    .ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid_r5[i] ),
+    .ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result_r5[i]      ), 
 
     .acc_gradient_valid         (acc_gradient_valid),
     .acc_gradient               (acc_gradient      )
@@ -367,16 +387,16 @@ reg           [`DIS_X_BIT_DEPTH-1:0] x_mem_rd_addr_r1,x_mem_rd_addr_r2,x_mem_rd_
 
 always @(posedge clk)begin
     x_mem_rd_addr_r1            <= x_mem_rd_addr;
-    // x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
-    // x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
+    x_mem_rd_addr_r2            <= x_mem_rd_addr_r1;
+    x_mem_rd_addr_r3            <= x_mem_rd_addr_r2;
     x_updated_rd_data_r1[i]     <= x_updated_rd_data[i];
     x_updated_rd_data_r2[i]     <= x_updated_rd_data_r1[i];
-    // x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
+    x_updated_rd_data_r3[i]     <= x_updated_rd_data_r2[i];
     // x_updated_rd_addr_r1[i]     <= x_updated_rd_addr[i];
     // x_updated_rd_addr_r2[i]     <= x_updated_rd_addr_r1[i];
 end
 
-assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r1 : x_batch_rd_addr[i];
+assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r3 : x_batch_rd_addr[i];
 
 //Compute the wr_counter to make sure ...add reigster to any rd/wr ports. 
 blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
@@ -434,7 +454,7 @@ sgd_x_wr inst_x_wr (
     .x_wr_credit_counter        (x_wr_credit_counter),//[`NUM_BITS_PER_BANK-1:0]
 
     .writing_x_to_host_memory_en   (writing_x_to_host_memory_en[i]),
-    .writing_x_to_host_memory_done (writing_x_to_host_memory_done),
+    .writing_x_to_host_memory_done (writing_x_to_host_memory_done_r[4][i]),
 
     .x_updated_wr_addr          (x_updated_wr_addr  ),
     .x_updated_wr_data          (x_updated_wr_data  ),
@@ -448,9 +468,18 @@ sgd_x_wr inst_x_wr (
 end
 endgenerate
 
+    always @(posedge clk) 
+    begin
+        dot_product_signed_r                    <= {dot_product_signed_r[3:0],dot_product_signed}; 
+        dot_product_signed_valid_r              <= {dot_product_signed_valid_r[3:0],dot_product_signed_valid};
+    end
+
+
+
   sgd_serial_loss inst_sgd_serial_loss (
     .clk                        (clk                      ),
-    .rst_n                      (rst_n_reg                    ), 
+    .rst_n                      (rst_n_reg                ), 
+    .hbm_clk                    (hbm_clk                  ),
 
     .step_size                  (step_size                ),
 
@@ -458,8 +487,8 @@ endgenerate
     .dispatch_axb_b_wr_en       (dispatch_axb_b_wr_en     ),
     .dispatch_axb_b_almost_full (dispatch_axb_b_almost_full),  
 
-    .dot_product_signed_valid   (dot_product_signed_valid ),
-    .dot_product_signed         (dot_product_signed       ), 
+    .dot_product_signed_valid   (dot_product_signed_valid_r[4] ),
+    .dot_product_signed         (dot_product_signed_r[4]       ), 
 
     .ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid),
     .ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result      )
@@ -505,11 +534,11 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
     .numEpochs                  (number_of_epochs   ),
     .addr_model                 (addr_model         ),
 
-    .writing_x_to_host_memory_en   (writing_x_to_host_memory_en[0]  ),
+    .writing_x_to_host_memory_en   (writing_x_to_host_memory_en_r[4]  ),
     .writing_x_to_host_memory_done (writing_x_to_host_memory_done),
 
     .x_mem_rd_addr              (x_mem_rd_addr      ),
-    .x_mem_rd_data              (x_updated_rd_data_r2  ),
+    .x_mem_rd_data              (x_updated_rd_data_r3  ),
 
     //---------------------Memory Inferface:write----------------------------//
     //cmd
@@ -524,7 +553,11 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
 
 );
 
-
+always @(posedge clk)begin
+    writing_x_to_host_memory_done_r[0]                  <= {`ENGINE_NUM{writing_x_to_host_memory_done}};
+    writing_x_to_host_memory_done_r[4:1]                <= writing_x_to_host_memory_done_r[3:0];
+    writing_x_to_host_memory_en_r                       <= {writing_x_to_host_memory_en_r[3:0],writing_x_to_host_memory_en[0]};
+end
 
 
 

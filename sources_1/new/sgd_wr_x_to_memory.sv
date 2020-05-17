@@ -253,7 +253,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
         if(~rst_n) begin
             x_to_mem_wr_en_pre[i]                   <= 0;                    
         end
-        else if(rd_en_r[4] && (engine_index_r[4] == i))begin
+        else if(rd_en_r[7] && (engine_index_r[7] == i))begin
             x_to_mem_wr_en_pre[i]           <= 1'b1;
         end
         else begin
@@ -266,7 +266,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
             x_to_mem_wr_data_pre[i]                 <= 0;                  
         end
         else begin
-            case(inner_index_r[4])
+            case(inner_index_r[7])
                 2'b00:begin
                     x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][511:0];
                 end

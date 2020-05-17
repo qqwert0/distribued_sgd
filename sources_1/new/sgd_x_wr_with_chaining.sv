@@ -64,15 +64,19 @@ module sgd_x_wr #( parameter DATA_WIDTH_IN      = 4 ,
 
 reg                     x_wr_en_end_of_batch;      
 reg               [7:0] x_wr_credit_counter_pre, x_wr_credit_counter_pre2, x_wr_credit_counter_pre3, x_wr_credit_counter_pre4, x_wr_credit_counter_pre5; 
+reg                     writing_x_to_host_memory_done_r1,writing_x_to_host_memory_done_r2;
+
 always @(posedge clk) begin
     //if(~rst_n)
     //    x_wr_credit_counter  <= 8'b0;
     //else //if (started) 
-    x_wr_credit_counter_pre2  <= x_wr_credit_counter_pre;
-    x_wr_credit_counter_pre3  <= x_wr_credit_counter_pre2;
-    x_wr_credit_counter_pre4  <= x_wr_credit_counter_pre3;
-    x_wr_credit_counter_pre5  <= x_wr_credit_counter_pre4;
-    x_wr_credit_counter       <= x_wr_credit_counter_pre5;
+    x_wr_credit_counter_pre2            <= x_wr_credit_counter_pre;
+    x_wr_credit_counter_pre3            <= x_wr_credit_counter_pre2;
+    x_wr_credit_counter_pre4            <= x_wr_credit_counter_pre3;
+    x_wr_credit_counter_pre5            <= x_wr_credit_counter_pre4;
+    x_wr_credit_counter                 <= x_wr_credit_counter_pre5;
+    writing_x_to_host_memory_done_r1    <= writing_x_to_host_memory_done;
+    writing_x_to_host_memory_done_r2    <= writing_x_to_host_memory_done_r1;
 end
 
 //to make sure that the parameters has been assigned...
@@ -309,7 +313,7 @@ always@(posedge clk) begin
             begin
                 /////
                 writing_x_to_host_memory_en  <= 1'b1; 
-                if (writing_x_to_host_memory_done)
+                if (writing_x_to_host_memory_done_r2)
                 begin
                     x_wr_credit_counter_pre      <= x_wr_credit_counter_pre + bank_batch_size;
                     state                    <= X_WR_EPOCH_STATE; //end of one sample...

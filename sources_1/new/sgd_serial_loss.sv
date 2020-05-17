@@ -24,6 +24,7 @@ module sgd_serial_loss (
     input   wire                                   clk,
     input   wire                                   rst_n,
 
+    input   wire                                   hbm_clk,
     //------------------------Configuration-----------------------------//
     input   wire [31:0]                            step_size,
 
@@ -170,7 +171,7 @@ endgenerate
 reg                           buffer_b_wr_en;     //rd
 reg    [32*`NUM_OF_BANKS-1:0] buffer_b_wr_data;   //rd_data
 
-always @(posedge clk) begin
+always @(posedge hbm_clk) begin
     buffer_b_wr_en      <= dispatch_axb_b_wr_en; 
     buffer_b_wr_data    <= dispatch_axb_b_data;
 end
@@ -182,23 +183,18 @@ wire                          buffer_b_data_valid;
 
 assign buffer_b_rd_en  = add_tree_out_valid[0]; 
 //on-chip buffer for b 
-distram_fifo  #( .FIFO_WIDTH      (32*`NUM_OF_BANKS), 
-                 .FIFO_DEPTH_BITS (       6        ) 
-) inst_b_fifo (
-    .clk        (clk),
-    .reset_n    (rst_n),
-
-    //Writing side. from sgd_dispatch...
-    .we         ( buffer_b_wr_en    ),
-    .din        ( buffer_b_wr_data  ),
-    .almostfull ( dispatch_axb_b_almost_full), 
-
-    //reading side.....
-    .re         (buffer_b_rd_en     ),
-    .dout       (buffer_b_rd_data   ),
-    .valid      (buffer_b_data_valid),
-    .empty      (                   ),
-    .count      (                   )
+inde_fifo_256w_128d inst_b_fifo (
+  .rst(~rst_n),              // input wire rst
+  .wr_clk(hbm_clk),        // input wire wr_clk
+  .rd_clk(clk),        // input wire rd_clk
+  .din(buffer_b_wr_data),              // input wire [255 : 0] din
+  .wr_en(buffer_b_wr_en),          // input wire wr_en
+  .rd_en(buffer_b_rd_en),          // input wire rd_en
+  .dout(buffer_b_rd_data),            // output wire [255 : 0] dout
+  .full(),            // output wire full
+  .empty(),          // output wire empty
+  .valid(buffer_b_data_valid),          // output wire valid
+  .prog_full(dispatch_axb_b_almost_full)  // output wire prog_full
 );
 
 

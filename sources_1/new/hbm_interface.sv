@@ -27,6 +27,9 @@ module hbm_interface(
     input wire                  hbm_clk,
     input wire                  hbm_rstn,
 
+    input wire                  dma_clk,
+    input wire                  dma_aresetn,    
+
     //mlweaving parameter
     input wire                  m_axis_mlweaving_valid,
     output wire                 m_axis_mlweaving_ready,
@@ -68,8 +71,8 @@ module hbm_interface(
     .s_axis_tready(m_axis_dma_to_hbm_read_cmd.ready),   // output wire s_axis_tready
     .s_axis_tdata({m_axis_dma_to_hbm_read_cmd.length,m_axis_dma_to_hbm_read_cmd.address}),
     
-    .m_axis_aresetn(user_aresetn),
-    .m_axis_aclk(user_clk),
+    .m_axis_aresetn(dma_aresetn),
+    .m_axis_aclk(dma_clk),
     .m_axis_tvalid(m_axis_dma_read_cmd.valid),  // output wire m_axis_tvalid
     .m_axis_tready(m_axis_dma_read_cmd.ready),  // input wire m_axis_tready
     .m_axis_tdata({m_axis_dma_read_cmd.length,m_axis_dma_read_cmd.address})
@@ -94,8 +97,8 @@ module hbm_interface(
 
     //axis_clock_converter_512 dma_bench_read_data_cc_inst (
     axis_register_slice512 inst_axis_register_slice_read (
-    .aclk(user_clk),                    // input wire aclk
-    .aresetn(user_aresetn),              // input wire aresetn
+    .aclk(dma_clk),                    // input wire aclk
+    .aresetn(dma_aresetn),              // input wire aresetn
     .s_axis_tvalid(s_axis_dma_read_data.valid),  // input wire s_axis_tvalid
     .s_axis_tready(s_axis_dma_read_data.ready),  // output wire s_axis_tready
     .s_axis_tdata(s_axis_dma_read_data.data),    // input wire [511 : 0] s_axis_tdata
@@ -109,8 +112,8 @@ module hbm_interface(
     );
 
     axis_data_fifo_512_cc hbm_bench_read_data_cc_inst (
-    .s_axis_aresetn(user_aresetn),
-    .s_axis_aclk(user_clk),
+    .s_axis_aresetn(dma_aresetn),
+    .s_axis_aclk(dma_clk),
     .s_axis_tvalid(s_axis_reg_read_data.valid),
     .s_axis_tready(s_axis_reg_read_data.ready),
     .s_axis_tdata(s_axis_reg_read_data.data),
@@ -129,8 +132,8 @@ module hbm_interface(
 
      //axis_clock_converter_512 dma_bench_write_data_cc_inst (
       axis_register_slice512 inst_axis_register_slice_write (
-      .aclk(user_clk),                    // input wire aclk
-      .aresetn(user_aresetn),              // input wire aresetn
+      .aclk(dma_clk),                    // input wire aclk
+      .aresetn(dma_aresetn),              // input wire aresetn
       .s_axis_tvalid(m_axis_reg_write_data.valid),  // input wire s_axis_tvalid
       .s_axis_tready(m_axis_reg_write_data.ready),  // output wire s_axis_tready
       .s_axis_tdata(m_axis_reg_write_data.data),    // input wire [511 : 0] s_axis_tdata
@@ -167,8 +170,8 @@ module hbm_interface(
 
 
     axis_clock_converter_512 axis_clock_converter_mlweaving_parameter (
-    .s_axis_aresetn(user_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(user_clk),        // input wire s_axis_aclk
+    .s_axis_aresetn(dma_aresetn),  // input wire s_axis_aresetn
+    .s_axis_aclk(dma_clk),        // input wire s_axis_aclk
     .s_axis_tvalid(m_axis_mlweaving_valid),    // input wire s_axis_tvalid
     .s_axis_tready(m_axis_mlweaving_ready),    // output wire s_axis_tready
     .s_axis_tdata(m_axis_mlweaving_data),
@@ -341,16 +344,19 @@ module hbm_interface(
 
 
     reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data;
+    reg  [4:0][`ENGINE_NUM-1:0][511:0]dispatch_axb_a_data_r;
     wire [`ENGINE_NUM*2-1:0][255:0]   dispatch_axb_b_data;
-    reg  [255:0]                      dispatch_axb_b_data_r;  
+    reg  [4:0][255:0]                 dispatch_axb_b_data_r;  
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en;
+    reg  [4:0][`ENGINE_NUM-1:0]       dispatch_axb_a_wr_en_r;
     wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
-    reg                               dispatch_axb_b_wr_en_r;
+    reg  [4:0]                        dispatch_axb_b_wr_en_r;
     wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
+    reg  [4:0][`ENGINE_NUM-1:0]       dispatch_axb_a_almost_full_r;
     wire                              almost_full;
 
 
-    reg [31:0]                      data_length;
+    reg [31:0]                        data_length;
     reg [`ENGINE_NUM*2-1:0][31:0]     rd_sum_cnt;
     reg [`ENGINE_NUM*2-1:0][31:0]     rd_addr_cnt;
     reg [`ENGINE_NUM*2-1:0][31:0]     wr_a_counter;
@@ -388,19 +394,19 @@ module hbm_interface(
         //---------------------Memory Inferface----------------------------//
 
         //Read Address (Output)  
-        .m_axi_ARVALID(hbm_axi[i*4].arvalid) , //rd address valid
-        .m_axi_ARADDR(hbm_axi[i*4].araddr)  , //rd byte address
-        .m_axi_ARID(hbm_axi[i*4].arid)    , //rd address id
-        .m_axi_ARLEN(hbm_axi[i*4].arlen)  , //rd burst=awlen+1,
-        .m_axi_ARSIZE(hbm_axi[i*4].arsize)  , //rd 3'b101, 32B
-        .m_axi_ARBURST(hbm_axi[i*4].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
-        .m_axi_ARLOCK(hbm_axi[i*4].arlock)  , //rd no
-        .m_axi_ARCACHE(hbm_axi[i*4].arcache) , //rd no
-        .m_axi_ARPROT(hbm_axi[i*4].arprot)  , //rd no
-        .m_axi_ARQOS(hbm_axi[i*4].arqos)   , //rd no
-        .m_axi_ARREGION(hbm_axi[i*4].arregion), //rd no
+        .m_axi_ARVALID(hbm_axi[i*2].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*2].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*2].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*2].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*2].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*2].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*2].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*2].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*2].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*2].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*2].arregion), //rd no
         .m_axi_ARUSER()  ,
-        .m_axi_ARREADY(hbm_axi[i*4].arready),  //rd ready to accept address.
+        .m_axi_ARREADY(hbm_axi[i*2].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
         .rd_addr_cnt()
 
@@ -431,17 +437,17 @@ module hbm_interface(
         //---------------------Memory Inferface----------------------------//
 
         //Read Address (Output)  
-        .m_axi_ARVALID(hbm_axi[i*4+1].arvalid) , //rd address valid
-        .m_axi_ARADDR(hbm_axi[i*4+1].araddr)  , //rd byte address
-        .m_axi_ARID(hbm_axi[i*4+1].arid)    , //rd address id
-        .m_axi_ARLEN(hbm_axi[i*4+1].arlen)  , //rd burst=awlen+1,
-        .m_axi_ARSIZE(hbm_axi[i*4+1].arsize)  , //rd 3'b101, 32B
-        .m_axi_ARBURST(hbm_axi[i*4+1].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
-        .m_axi_ARLOCK(hbm_axi[i*4+1].arlock)  , //rd no
-        .m_axi_ARCACHE(hbm_axi[i*4+1].arcache) , //rd no
-        .m_axi_ARPROT(hbm_axi[i*4+1].arprot)  , //rd no
-        .m_axi_ARQOS(hbm_axi[i*4+1].arqos)   , //rd no
-        .m_axi_ARREGION(hbm_axi[i*4+1].arregion), //rd no
+        .m_axi_ARVALID(hbm_axi[i*2+1].arvalid) , //rd address valid
+        .m_axi_ARADDR(hbm_axi[i*2+1].araddr)  , //rd byte address
+        .m_axi_ARID(hbm_axi[i*2+1].arid)    , //rd address id
+        .m_axi_ARLEN(hbm_axi[i*2+1].arlen)  , //rd burst=awlen+1,
+        .m_axi_ARSIZE(hbm_axi[i*2+1].arsize)  , //rd 3'b101, 32B
+        .m_axi_ARBURST(hbm_axi[i*2+1].arburst) , //rd burst type: 01 (INC), 00 (FIXED)
+        .m_axi_ARLOCK(hbm_axi[i*2+1].arlock)  , //rd no
+        .m_axi_ARCACHE(hbm_axi[i*2+1].arcache) , //rd no
+        .m_axi_ARPROT(hbm_axi[i*2+1].arprot)  , //rd no
+        .m_axi_ARQOS(hbm_axi[i*2+1].arqos)   , //rd no
+        .m_axi_ARREGION(hbm_axi[i*2+1].arregion), //rd no
         .m_axi_ARUSER()  ,
         .m_axi_ARREADY(hbm_axi[i*4+1].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
@@ -466,12 +472,12 @@ module hbm_interface(
 
         //---------------------Input: External Memory rd response-----------------//
         //Read Data (input)
-        .m_axi_RVALID(hbm_axi[i*4].rvalid)  , //rd data valid
-        .m_axi_RDATA(hbm_axi[i*4].rdata)   , //rd data 
-        .m_axi_RLAST(hbm_axi[i*4].rlast)   , //rd data last
-        .m_axi_RID(hbm_axi[i*4].rid)     , //rd data id
-        .m_axi_RRESP(hbm_axi[i*4].rresp)   , //rd data status. 
-        .m_axi_RREADY(hbm_axi[i*4].rready)  ,
+        .m_axi_RVALID(hbm_axi[i*2].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*2].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*2].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*2].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*2].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*2].rready)  ,
 
         //banks = 8, bits_per_bank=64...
         //------------------Output: disptach resp data to a ofeach bank---------------//
@@ -504,12 +510,12 @@ module hbm_interface(
 
         //---------------------Input: External Memory rd response-----------------//
         //Read Data (input)
-        .m_axi_RVALID(hbm_axi[i*4+1].rvalid)  , //rd data valid
-        .m_axi_RDATA(hbm_axi[i*4+1].rdata)   , //rd data 
-        .m_axi_RLAST(hbm_axi[i*4+1].rlast)   , //rd data last
-        .m_axi_RID(hbm_axi[i*4+1].rid)     , //rd data id
-        .m_axi_RRESP(hbm_axi[i*4+1].rresp)   , //rd data status. 
-        .m_axi_RREADY(hbm_axi[i*4+1].rready)  ,
+        .m_axi_RVALID(hbm_axi[i*2+1].rvalid)  , //rd data valid
+        .m_axi_RDATA(hbm_axi[i*2+1].rdata)   , //rd data 
+        .m_axi_RLAST(hbm_axi[i*2+1].rlast)   , //rd data last
+        .m_axi_RID(hbm_axi[i*2+1].rid)     , //rd data id
+        .m_axi_RRESP(hbm_axi[i*2+1].rresp)   , //rd data status. 
+        .m_axi_RREADY(hbm_axi[i*2+1].rready)  ,
 
         //banks = 8, bits_per_bank=64...
         //------------------Output: disptach resp data to a ofeach bank---------------//
@@ -533,58 +539,48 @@ module hbm_interface(
         hbm_read_a_data_in_r[i*2+1]        <= hbm_read_a_data_in[i*2+1];
     end 
 
-    distram_fifo  #( .FIFO_WIDTH      (     256       ), 
-                    .FIFO_DEPTH_BITS (       6        ) 
-    ) inst_a0_fifo (
-        .clk        (hbm_clk),
-        .reset_n    (hbm_rstn),
+    inde_fifo_256w_128d inst_a0_fifo (
+    .rst(~hbm_rstn),              // input wire rst
+    .wr_clk(hbm_clk),        // input wire wr_clk
+    .rd_clk(user_clk),        // input wire rd_clk
+    .din(hbm_read_a_data_in_r[i*2]),              // input wire [255 : 0] din
+    .wr_en(hbm_read_a_wr_en_r[i*2]),          // input wire wr_en
+    .rd_en(hbm_read_a_rd_en[i*2]),          // input wire rd_en
+    .dout(hbm_read_a_data_out[i*2]),            // output wire [255 : 0] dout
+    .full(),            // output wire full
+    .empty(hbm_read_a_empty[i*2]),          // output wire empty
+    .valid(hbm_read_a_valid[i*2]),          // output wire valid
+    .prog_full(hbm_read_a_almost_full[i*2])  // output wire prog_full
+    ); 
 
-        //Writing side. from sgd_dispatch...
-        .we         ( hbm_read_a_wr_en_r[i*2]    ),
-        .din        ( hbm_read_a_data_in_r[i*2]  ),
-        .almostfull ( hbm_read_a_almost_full[i*2]    ), 
-
-        //reading side.....
-        .re         (hbm_read_a_rd_en[i*2]     ),
-        .dout       (hbm_read_a_data_out[i*2]   ),
-        .valid      (hbm_read_a_valid[i*2]),
-        .empty      (hbm_read_a_empty[i*2]),
-        .count      (                   )
-    );  
-    
-    distram_fifo  #( .FIFO_WIDTH      (     256       ), 
-                    .FIFO_DEPTH_BITS (       6        ) 
-    ) inst_a1_fifo (
-        .clk        (hbm_clk),
-        .reset_n    (hbm_rstn),
-
-        //Writing side. from sgd_dispatch...
-        .we         ( hbm_read_a_wr_en_r[i*2+1]    ),
-        .din        ( hbm_read_a_data_in_r[i*2+1]  ),
-        .almostfull ( hbm_read_a_almost_full[i*2+1]    ), 
-
-        //reading side.....
-        .re         (hbm_read_a_rd_en[i*2+1]     ),
-        .dout       (hbm_read_a_data_out[i*2+1]   ),
-        .valid      (hbm_read_a_valid[i*2+1]),
-        .empty      (hbm_read_a_empty[i*2+1]),
-        .count      (                   )
+    inde_fifo_256w_128d inst_a1_fifo (
+    .rst(~hbm_rstn),              // input wire rst
+    .wr_clk(hbm_clk),        // input wire wr_clk
+    .rd_clk(user_clk),        // input wire rd_clk
+    .din(hbm_read_a_data_in_r[i*2+1]),              // input wire [255 : 0] din
+    .wr_en(hbm_read_a_wr_en_r[i*2+1]),          // input wire wr_en
+    .rd_en(hbm_read_a_rd_en[i*2+1]),          // input wire rd_en
+    .dout(hbm_read_a_data_out[i*2+1]),            // output wire [255 : 0] dout
+    .full(),            // output wire full
+    .empty(hbm_read_a_empty[i*2+1]),          // output wire empty
+    .valid(hbm_read_a_valid[i*2+1]),          // output wire valid
+    .prog_full(hbm_read_a_almost_full[i*2+1])  // output wire prog_full
     );
 
-    always @(posedge hbm_clk) begin
+    always @(posedge user_clk) begin
         hbm_read_a_valid_o[i*2]         <= hbm_read_a_valid[i*2];
         hbm_read_a_valid_o[i*2+1]       <= hbm_read_a_valid[i*2+1];
         hbm_read_a_data_o[i*2]          <= hbm_read_a_data_out[i*2];
         hbm_read_a_data_o[i*2+1]        <= hbm_read_a_data_out[i*2+1];
     end     
     
-    always @(posedge hbm_clk) begin
+    always @(posedge user_clk) begin
         dispatch_axb_a_data[i]          <= {hbm_read_a_data_o[i*2+1],hbm_read_a_data_o[i*2]};
         dispatch_axb_a_wr_en[i]         <= hbm_read_a_valid_o[i*2];
     end       
 
-    always @(posedge hbm_clk) begin
-        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full[i])) begin
+    always @(posedge user_clk) begin
+        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r[4][i])) begin
             hbm_read_a_rd_en[i*2]       <= 1'b1;
             hbm_read_a_rd_en[i*2+1]     <= 1'b1;
         end
@@ -592,15 +588,19 @@ module hbm_interface(
             hbm_read_a_rd_en[i*2]       <= 1'b0;
             hbm_read_a_rd_en[i*2+1]     <= 1'b0;
         end            
-    end 
-
-        
+    end  
 
     end
     endgenerate
 
 
-    
+     always @(posedge user_clk) begin
+        dispatch_axb_a_almost_full_r    <= {dispatch_axb_a_almost_full_r[3:0],dispatch_axb_a_almost_full};
+        dispatch_axb_a_data_r           <= {dispatch_axb_a_data_r[3:0],dispatch_axb_a_data};
+        dispatch_axb_a_wr_en_r          <= {dispatch_axb_a_wr_en_r[3:0],dispatch_axb_a_wr_en};
+    end    
+
+
     wire [511:0]                     back_data;
     wire                             back_valid;
     // reg [7:0]                       channel_choice_r;
@@ -639,18 +639,21 @@ module hbm_interface(
     // end
 
 always @(posedge hbm_clk)begin
-    dispatch_axb_b_data_r               <= dispatch_axb_b_data[`ENGINE_NUM];
-    dispatch_axb_b_wr_en_r              <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+    dispatch_axb_b_data_r[0]                <= dispatch_axb_b_data[`ENGINE_NUM];
+    dispatch_axb_b_data_r[4:1]              <= dispatch_axb_b_data_r[3:0];
+    dispatch_axb_b_wr_en_r[0]               <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+    dispatch_axb_b_wr_en_r[4:1]             <= dispatch_axb_b_wr_en_r[3:0];
 end
 
 
 sgd_top_bw #( 
     .DATA_WIDTH_IN               (4),
     .MAX_DIMENSION_BITS          (18)
-)sgd_top_bw_inst (
-    .clk                                (hbm_clk),
+)sgd_top_bw_inst (    
+    .clk                                (user_clk),
     .rst_n                              (hbm_rstn),
-    .dma_clk                            (user_clk),
+    .dma_clk                            (dma_clk),
+    .hbm_clk                            (hbm_clk),
     //-------------------------------------------------//
     .start_um                           (hbm_write_done),
     // .um_params                          (m_axis_mlweaving_data),
@@ -663,18 +666,16 @@ sgd_top_bw #(
     .number_of_samples                  (number_of_samples),
     .number_of_bits                     (number_of_bits),
 
-
-
     .um_done                            (),
     .um_state_counters                  (),
 
 
-    .dispatch_axb_a_data                (dispatch_axb_a_data),
-    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
+    .dispatch_axb_a_data                (dispatch_axb_a_data_r[4]),
+    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en_r[4]),
     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-    .dispatch_axb_b_data                (dispatch_axb_b_data_r),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r),
+    .dispatch_axb_b_data                (dispatch_axb_b_data_r[4]),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r[4]),
     .dispatch_axb_b_almost_full         (),
     //---------------------Memory Inferface:write----------------------------//
     //cmd
@@ -689,8 +690,8 @@ sgd_top_bw #(
 
 );
    hbm_send_back  u_hbm_send_back (
-       .hbm_clk                                            ( user_clk                                            ),
-       .hbm_aresetn                                        ( user_aresetn                                        ),
+       .hbm_clk                                            ( dma_clk                                            ),
+       .hbm_aresetn                                        ( dma_aresetn                                        ),
        .m_axis_dma_write_cmd                               ( m_axis_dma_write_cmd                                ),
        .m_axis_dma_write_data                              ( m_axis_reg_write_data                               ),
        .start                                              ( x_data_send_back_start                              ),
