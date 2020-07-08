@@ -42,6 +42,25 @@ module hbm_send_back(
 
     );
 
+
+    axi_stream                  m_axis_reg_write_data(); 
+     axis_register_slice512 inst_axis_register_slice_write (
+     .aclk(hbm_clk),                    // input wire aclk
+     .aresetn(hbm_aresetn),              // input wire aresetn
+     .s_axis_tvalid(m_axis_reg_write_data.valid),  // input wire s_axis_tvalid
+     .s_axis_tready(m_axis_reg_write_data.ready),  // output wire s_axis_tready
+     .s_axis_tdata(m_axis_reg_write_data.data),    // input wire [511 : 0] s_axis_tdata
+     .s_axis_tkeep(m_axis_reg_write_data.keep),    // input wire [63 : 0] s_axis_tkeep
+     .s_axis_tlast(m_axis_reg_write_data.last),    // input wire s_axis_tlast
+     .m_axis_tvalid(m_axis_dma_write_data.valid),  // output wire m_axis_tvalid
+     .m_axis_tready(m_axis_dma_write_data.ready),  // input wire m_axis_tready
+     .m_axis_tdata(m_axis_dma_write_data.data),    // output wire [511 : 0] m_axis_tdata
+     .m_axis_tkeep(m_axis_dma_write_data.keep),    // output wire [63 : 0] m_axis_tkeep
+     .m_axis_tlast(m_axis_dma_write_data.last)    // output wire m_axis_tlast
+     );
+
+
+
     reg                                     start_d0,start_d1;
     reg [63:0]                              addr_x_r;
     reg [31:0]                              data_length_r; 
@@ -67,9 +86,10 @@ module hbm_send_back(
 
     /*dma write data*/
     
-    assign m_axis_dma_write_data.keep       = {64{1'b1}};
-    assign m_axis_dma_write_data.data       = fifo_data_out;
-    assign m_axis_dma_write_data.valid      = fifo_rd_en;
+    assign m_axis_reg_write_data.keep       = {64{1'b1}};
+    assign m_axis_reg_write_data.data       = fifo_data_out;
+    assign m_axis_reg_write_data.valid      = fifo_rd_en;
+    assign m_axis_reg_write_data.last       = (data_counter >= data_length_minus)?1:0;
 
 
     reg [511:0]                 fifo_data_in;
@@ -83,7 +103,7 @@ module hbm_send_back(
         fifo_wr_en              <= back_valid;
     end
 
-    assign fifo_rd_en           = ~fifo_empty & m_axis_dma_write_data.ready & cstate[2];
+    assign fifo_rd_en           = ~fifo_empty & m_axis_reg_write_data.ready & cstate[2];
 
 
     fifo_256i_512o_fwft fifo_256i_512o_fwft_inst (
@@ -112,7 +132,7 @@ module hbm_send_back(
             data_counter                    <= 32'b0;
         else if(start_d1)
             data_counter                    <= 32'b0;
-        else if(m_axis_dma_write_data.ready & m_axis_dma_write_data.valid)
+        else if(m_axis_reg_write_data.ready & m_axis_reg_write_data.valid)
             data_counter                    <= data_counter + 32'd64;
         else
             data_counter                    <= data_counter;

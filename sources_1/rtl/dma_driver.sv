@@ -22,7 +22,7 @@
 
 `timescale 1ns / 1ps
 //`default_nettype none
-
+`include "example_module.vh"
 module dma_driver(
     input wire          sys_clk,
     input wire          sys_clk_gt,
@@ -43,9 +43,10 @@ module dma_driver(
 
     // Axi Lite Control interface
     axi_lite.master     m_axil,
+`ifdef XDMA_BYPASS  
     // AXI MM Control Interface
     axi_mm.master       m_axim,
-
+`endif
     // AXI Stream Interface
     axi_stream.slave    s_axis_c2h_data,
     axi_stream.master   m_axis_h2c_data,
@@ -72,41 +73,6 @@ module dma_driver(
 wire    pcie_aresetn_o;
 always @(posedge pcie_clk)
     pcie_aresetn                <= pcie_aresetn_o;
-
-//For PCIe 3.0 8x, the data width has to be converted from 512bit to 256bit
-
-/*axi_stream #(.WIDTH(256))   axis_dma_read_data_to_width();
-axi_stream #(.WIDTH(256))   axis_dma_write_data_from_width();
-
-axis_256_to_512_converter dma_read_data_width_converter (
-  .aclk(pcie_clk),                                                               // input wire aclk
-  .aresetn(pcie_aresetn),                                                        // input wire aresetn
-  .s_axis_tvalid(axis_dma_read_data_to_width.valid),                            // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_read_data_to_width.ready),                            // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_read_data_to_width.data),                         // input wire [255 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_dma_read_data_to_width.keep),                         // input wire [31 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_dma_read_data_to_width.last),                         // input wire s_axis_tlast
-  .m_axis_tvalid(m_axis_h2c_data.valid),                                           // output wire m_axis_tvalid
-  .m_axis_tready(m_axis_h2c_data.ready),                                           // input wire m_axis_tready
-  .m_axis_tdata(m_axis_h2c_data.data),                                             // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(m_axis_h2c_data.keep),                                             // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(m_axis_h2c_data.last)                                              // output wire m_axis_tlast
-); 
-
-axis_512_to_256_converter pcie_axis_write_data_512_256 (
-  .aclk(pcie_clk),                                                                // input wire aclk
-  .aresetn(pcie_aresetn),                                                         // input wire aresetn
-  .s_axis_tvalid(s_axis_c2h_data.valid),                                            // input wire s_axis_tvalid
-  .s_axis_tready(s_axis_c2h_data.ready),                                            // output wire s_axis_tready
-  .s_axis_tdata(s_axis_c2h_data.data),                                              // input wire [511 : 0] s_axis_tdata
-  .s_axis_tkeep(s_axis_c2h_data.keep),                                              // input wire [63 : 0] s_axis_tkeep
-  .s_axis_tlast(s_axis_c2h_data.last),                                              // input wire s_axis_tlast
-  .m_axis_tvalid(axis_dma_write_data_from_width.valid),                          // output wire m_axis_tvalid
-  .m_axis_tready(axis_dma_write_data_from_width.ready),                          // input wire m_axis_tready
-  .m_axis_tdata(axis_dma_write_data_from_width.data),                       // output wire [255 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_dma_write_data_from_width.keep),                       // output wire [31 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_dma_write_data_from_width.last)                        // output wire m_axis_tlast
-);*/
 
 //For PCIe 3.0 16x,
 
@@ -196,11 +162,12 @@ xdma_0 dma_inst (
   .h2c_dsc_byp_load_0     (h2c_dsc_byp_load_0),
   
   .c2h_sts_0(c2h_sts_0),                                          // output wire [7 : 0] c2h_sts_0
-  .h2c_sts_0(h2c_sts_0),                                          // output wire [7 : 0] h2c_sts_0
-  
+  .h2c_sts_0(h2c_sts_0)                                          // output wire [7 : 0] h2c_sts_0
+
+`ifdef XDMA_BYPASS  
   // CQ Bypass ports
   // write address channel 
-  .m_axib_awid      (m_axim.awid),
+  ,.m_axib_awid      (m_axim.awid),
   .m_axib_awaddr    (m_axim.awaddr[18:0]),
   .m_axib_awlen     (m_axim.awlen),
   .m_axib_awsize    (m_axim.awsize),
@@ -239,8 +206,18 @@ xdma_0 dma_inst (
   .m_axib_rlast     (m_axim.rlast),
   .m_axib_rvalid    (m_axim.rvalid),
   .m_axib_rready    (m_axim.rready)
+`endif  
 );
 
-    
+
+
+
+
+
+
+
+
+
+
 endmodule
 //`default_nettype wire

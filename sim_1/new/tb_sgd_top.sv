@@ -53,8 +53,14 @@ module tb_sgd_bw_top(
     wire                                   um_rx_rd_valid;
     wire                                   um_rx_rd_ready;
 
-    axi_mm          hbm_axi[`ENGINE_NUM]();
-    axi_stream      m_axi_c2h_data();
+    reg [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0]   dispatch_axb_a_data;
+    reg [`ENGINE_NUM-1:0]                                         dispatch_axb_a_wr_en;
+    wire [`ENGINE_NUM-1:0]                                   dispatch_axb_a_almost_full;
+
+    reg                  [32*`NUM_OF_BANKS-1:0]  dispatch_axb_b_data;
+    reg                                          dispatch_axb_b_wr_en;
+    wire                                        dispatch_axb_b_almost_full;
+
 
 
     assign um_params = {128'b0,number_of_bits,number_of_samples,dimension,number_of_epochs,step_size,mini_batch_size,addr_model,addr_b,addr_a};
@@ -68,14 +74,14 @@ module tb_sgd_bw_top(
             step_size        <= 16;
             number_of_epochs <= 3;
             dimension        <= 256;    
-            number_of_samples<= 7288;
+            number_of_samples<= 7200;
             number_of_bits   <= 8;    
     end
 
 
     initial begin
-        $readmemh("/home/ccai/distributed_sgd/a_ups.txt",a,0,1866496);
-        $readmemh("/home/ccai/distributed_sgd/b_ups.txt",b,0,7291);
+        $readmemh("/home/amax/hhj/distributed_sgd/a_ups.txt",a,0,1866496);
+        $readmemh("/home/amax/hhj/distributed_sgd/b_ups.txt",b,0,7291);
         clk = 1'b1;
         rst_n = 1'b0;
         start_um = 1'b0;
@@ -86,97 +92,154 @@ module tb_sgd_bw_top(
     end
 
     always #5 clk = ~clk;
+
+
+
 //generate end generate
 genvar i;
 // Instantiate engines
 generate
 for(i = 0; i < `ENGINE_NUM; i++) 
-begin
-    reg  [511:0]                           um_rx_data;
-    reg [7:0]                             um_rx_rd_tag;
-    assign hbm_axi[i].arready = cstate[0];
+begin  
 
-    assign hbm_axi[i].rvalid = cstate[2];
-
-    localparam      IDLE = 4'b0001;
-    localparam      ADDR = 4'b0010;
-    localparam      DATA = 4'b0100;
-
-    reg [3:0]       cstate;
-    reg [3:0]       nstate;
+    reg [31:0]              bits_cnt;
+    reg                     bits_flag;
+    reg                     dimension_flag;
+    reg [31:0]              dimension_cnt;
+    reg [31:0]              a_sample_cnt;
+    wire [31:0]              a_addr;
 
     always @(posedge clk)begin
-        if(~rst_n)begin
-            cstate  <= IDLE;
+        if(~rst_n) begin
+            bits_cnt                        <= 0;
+            bits_flag                       <= 0;
+            dimension_flag                  <= 0;
+            dimension_cnt                   <= 0;
+            a_sample_cnt                    <= 0;
+        end
+        else if(dispatch_axb_a_wr_en[i]) begin
+            bits_flag <= bits_flag + 1;
+            if(bits_flag) begin
+                dimension_flag <= dimension_flag +1;
+                if(dimension_flag) begin
+                    bits_cnt <= bits_cnt + 2;
+                    if(bits_cnt >= number_of_bits - 2) begin 
+                        bits_cnt <= 0;
+                        dimension_cnt <= dimension_cnt + `NUM_BITS_PER_BANK * `ENGINE_NUM * 2;
+                        if(dimension_cnt >= (dimension-`NUM_BITS_PER_BANK * `ENGINE_NUM * 2)) begin
+                            dimension_cnt <= 0;
+                            a_sample_cnt <= a_sample_cnt + `NUM_OF_BANKS;
+                            if(a_sample_cnt >= number_of_samples - `NUM_OF_BANKS) begin
+
+                            end
+                        end
+                    end
+                end
+            end
         end
         else begin
-            cstate <= nstate;
-        end        
-    end 
+            bits_cnt                        <= bits_cnt;
+            bits_flag                       <= bits_flag;
+            dimension_flag                  <= dimension_flag;
+            dimension_cnt                   <= dimension_cnt;
+            a_sample_cnt                    <= a_sample_cnt;        
+        end
+    end
 
-    always @(*)begin
-        case(cstate)
-            IDLE:begin
-                if(hbm_axi[i].arvalid & hbm_axi[i].arready)
-                    nstate <= ADDR;
-                else
-                    nstate <= IDLE;
-            end
-            ADDR:begin
-                if(hbm_axi[i].araddr<32'h800000)begin
-                    um_rx_data  <= {a[hbm_axi[i].araddr*16+15],a[hbm_axi[i].araddr*16+14],a[hbm_axi[i].araddr*16+13],a[hbm_axi[i].araddr*16+12],
-                            a[hbm_axi[i].araddr*16+11],a[hbm_axi[i].araddr*16+10],a[hbm_axi[i].araddr*16+9],a[hbm_axi[i].araddr*16+8],
-                            a[hbm_axi[i].araddr*16+7],a[hbm_axi[i].araddr*16+6],a[hbm_axi[i].araddr*16+5],a[hbm_axi[i].araddr*16+4],
-                            a[hbm_axi[i].araddr*16+3],a[hbm_axi[i].araddr*16+2],a[hbm_axi[i].araddr*16+1],a[hbm_axi[i].araddr*16]};
-                    um_rx_rd_tag <= `MEM_RD_A_TAG;   
-                end     
-                else begin
-                    um_rx_data  <= {b[(hbm_axi[i].araddr-32'h800000)*16+15],b[(hbm_axi[i].araddr-32'h800000)*16+14],b[(hbm_axi[i].araddr-32'h800000)*16+13],b[(hbm_axi[i].araddr-32'h800000)*16+12],
-                            b[(hbm_axi[i].araddr-32'h800000)*16+11],b[(hbm_axi[i].araddr-32'h800000)*16+10],b[(hbm_axi[i].araddr-32'h800000)*16+9],b[(hbm_axi[i].araddr-32'h800000)*16+8],
-                            b[(hbm_axi[i].araddr-32'h800000)*16+7],b[(hbm_axi[i].araddr-32'h800000)*16+6],b[(hbm_axi[i].araddr-32'h800000)*16+5],b[(hbm_axi[i].araddr-32'h800000)*16+4],
-                            b[(hbm_axi[i].araddr-32'h800000)*16+3],b[(hbm_axi[i].araddr-32'h800000)*16+2],b[(hbm_axi[i].araddr-32'h800000)*16+1],b[(hbm_axi[i].araddr-32'h800000)*16]};
-                    um_rx_rd_tag <= `MEM_RD_B_TAG;  
-                end
-                nstate <= DATA;
-            end
-            DATA:begin
-                if(hbm_axi[i].rready && hbm_axi[i].rvalid)
-                    nstate <= IDLE;
-                else
-                    nstate <= DATA;
-            end
-            default:begin
-                nstate <= IDLE;
-            end
-        endcase
+    always @(posedge clk)begin
+        if(~rst_n)
+            dispatch_axb_a_wr_en[i]     <= 0;
+        else if(a_sample_cnt >= number_of_samples)
+            dispatch_axb_a_wr_en[i]     <= 0;
+        else if(~dispatch_axb_a_almost_full[i])
+            dispatch_axb_a_wr_en[i]     <= 1;
+        else
+            dispatch_axb_a_wr_en[i]     <= 0;
+    end
 
-    end   
+    assign a_addr = (a_sample_cnt * dimension * 32)/(`NUM_OF_BANKS * `NUM_BITS_PER_BANK) +  (((dimension_cnt + dimension_flag * `NUM_BITS_PER_BANK * `ENGINE_NUM + i * `NUM_BITS_PER_BANK)/2)) + (bits_cnt + bits_flag);
+
+
+    assign dispatch_axb_a_data[i]     = {a[a_addr*16+15],a[a_addr*16+14],a[a_addr*16+13],a[a_addr*16+12],a[a_addr*16+11],a[a_addr*16+10],a[a_addr*16+9],a[a_addr*16+8],
+                                        a[a_addr*16+7],a[a_addr*16+6],a[a_addr*16+5],a[a_addr*16+4],a[a_addr*16+3],a[a_addr*16+2],a[a_addr*16+1],a[a_addr*16]};
+
 
 end
 endgenerate
-    assign m_axi_c2h_data.ready = 1;
 
-sgd_top_bw inst_sgd_top_bw(
-    .clk(clk),
-    .rst_n(rst_n),
+    reg [31:0]              b_cnt;
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            b_cnt     <= 0;
+        else if(~dispatch_axb_b_almost_full)
+            b_cnt     <= b_cnt + 1;
+        else
+            b_cnt     <= b_cnt;
+    end
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            dispatch_axb_b_wr_en     <= 0;
+        else if(b_cnt >= (number_of_samples>>3))
+            dispatch_axb_b_wr_en     <= 0;
+        else if(~dispatch_axb_b_almost_full)
+            dispatch_axb_b_wr_en     <= 1;
+        else
+            dispatch_axb_b_wr_en     <= 0;
+    end
+
+    always @(posedge clk)begin
+        if(~dispatch_axb_b_almost_full)
+            dispatch_axb_b_data     <= {b[b_cnt*8+7],b[b_cnt*8+6],b[b_cnt*8+5],b[b_cnt*8+4],b[b_cnt*8+3],b[b_cnt*8+2],b[b_cnt*8+1],b[b_cnt*8]};
+        else
+            dispatch_axb_b_data     <= dispatch_axb_b_data;
+    end
+
+
+sgd_top_bw #( 
+    .DATA_WIDTH_IN               (4),
+    .MAX_DIMENSION_BITS          (18),
+    .SLR0_ENGINE_NUM                                (0),
+    .SLR1_ENGINE_NUM                                (2),
+    .SLR2_ENGINE_NUM                                (0)
+)sgd_top_bw_inst (
+    .clk                                (clk),
+    .rst_n                              (rst_n),
+    .dma_clk                            (clk),
+    .hbm_clk                            (clk),
     //-------------------------------------------------//
-    .start_um(start_um),
-    .um_params(um_params),
-    .um_done(),
-    .um_state_counters(),
+    .start_um                           (start_um),
+    .addr_model                         (addr_model),
+    .mini_batch_size                    (mini_batch_size),
+    .step_size                          (step_size),
+    .number_of_epochs                   (number_of_epochs),
+    .dimension                          (dimension),
+    .number_of_samples                  (number_of_samples),
+    .number_of_bits                     (number_of_bits),
+    .um_done                            (),
+    .um_state_counters                  (),
 
-    .dispatch_axb_a_data(),
-    .dispatch_axb_a_wr_en(),
-    .dispatch_axb_a_almost_full(),
 
-    .dispatch_axb_b_data(),
-    .dispatch_axb_b_wr_en(),   
-    .m_axi_c2h_data(m_axi_c2h_data)
+    .dispatch_axb_a_data                (dispatch_axb_a_data),
+    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
+    .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
+
+    .dispatch_axb_b_data                (dispatch_axb_b_data),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en),
+    .dispatch_axb_b_almost_full         (dispatch_axb_b_almost_full),
+    //---------------------Memory Inferface:write----------------------------//
+    //cmd
+    .x_data_send_back_start             (),
+    .x_data_send_back_addr              (),
+    .x_data_send_back_length            (),
+
+    //data
+    .x_data_out                         (),
+    .x_data_out_valid                   (),
+    .x_data_out_almost_full             (0)
 
 );
-
-
-
 
 
 endmodule

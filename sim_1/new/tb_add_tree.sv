@@ -23,12 +23,13 @@
 module tb_add_tree(
 
     );
-    parameter TREE_WIDTH = 8;
-    parameter TREE_DEPTH = 3;
+    parameter TREE_WIDTH = 16;
+    parameter TREE_DEPTH = 4;
     reg clk;
     reg rst_n;
-    reg  signed                    [31:0] v_input[9-1:0];       //
-    reg                                   v_input_valid;  //    
+    reg  signed                    [31:0] v_input[7:0];       //
+    reg                                   v_input_valid;
+    reg                                   v_input_enable[7:0];  //    
 
     initial begin
         clk = 1;
@@ -46,16 +47,39 @@ module tb_add_tree(
     genvar i;
     // Instantiate engines
     generate
-    for(i = 0; i < 9; i++) begin
-        assign v_input[i] = i;
+    for(i = 0; i < 8; i++) begin
+//        always @(posedge clk)begin
+//            if(~rst_n)
+//                v_input_enable[i] =  i;
+//            else 
+//                v_input_enable[i] =  ~v_input_enable[i];
+//        end
+        initial begin
+            v_input_enable[i] = i;
+            #400
+            v_input_enable[i] = ~v_input_enable[i];
+            #30
+            v_input_enable[i] = ~v_input_enable[i];
+            #30
+            v_input_enable[i] = ~v_input_enable[i];                        
+        end
+    end
+    endgenerate
+    generate
+    for(i = 0; i < 8; i++) begin
+        always @(posedge clk)begin
+            if(~rst_n)
+                v_input[i] =  i;
+            else 
+                v_input[i] =  v_input[i] + 1;
+        end
     end
     endgenerate
 
 
-
     always #5 clk = ~clk;
 
-sgd_adder_tree #(
+sgd_dsp_add_tree #(
     .TREE_DEPTH          (3)
 )inst(
     .clk(clk),
@@ -65,6 +89,7 @@ sgd_adder_tree #(
     //---------------------Input: External Memory rd response-----------------//
     .v_input(v_input),       //
     .v_input_valid(v_input_valid),  //
+    .v_input_enable(v_input_enable),
 
     //------------------Output: disptach resp data to b of each bank---------------//
     .v_output(), 

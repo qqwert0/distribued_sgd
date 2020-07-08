@@ -74,11 +74,12 @@ begin
 end
 //wire                  [8:0] buffer_a_rd_addr;
 
-/////////////////////Wr of a_buffer///////////////////////////////////////
-reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] dispatch_axb_a_data_r;
-reg  [1:0]                                       dispatch_axb_a_wr_en_r;
+   //*//////////////////Wr of a_buffer//////////////////////////////////////*/
+
+reg  [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] dispatch_axb_a_data_r;
+reg                                         dispatch_axb_a_wr_en_r;
 reg  [1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_wr_data;
-reg  [1:0]                                       buffer_a_wr_en;
+(* keep = "true" , max_fanout = 200 *)reg  [1:0]                                       buffer_a_wr_en;
 wire [1:0]                                       buffer_a_almost_full;
 reg  [1:0]                                       buffer_a_choice;
 always @(posedge clk) begin
@@ -172,16 +173,16 @@ always @(posedge clk) begin
     buffer_a_rd_data <= buffer_a_rd_data_valid_o[0] ? buffer_a_rd_data_o[0] : buffer_a_rd_data_o[1];
     buffer_a_rd_data_valid_r <= buffer_a_rd_data_valid;
     buffer_a_rd_data_valid_r1 <= buffer_a_rd_data_valid_r;
-    buffer_a_rd_data_r <= buffer_a_rd_data;    
+    // buffer_a_rd_data_r <= buffer_a_rd_data;    
 end
 
-reg [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data_r;
+// reg [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data_r;
 reg x_rd_en, x_rd_data_valid, x_rd_valid_r1; //it becomes valid after two cycles
 always @(posedge clk) 
 begin 
-    x_rd_valid_r1               <= x_rd_en;
-    x_rd_data_valid             <= x_rd_valid_r1;
-    x_rd_data_r                 <= x_rd_data;
+    x_rd_data_valid             <= x_rd_en;
+    // x_rd_data_valid             <= x_rd_valid_r1;
+    // x_rd_data_r                 <= x_rd_data;
 end
 
 
@@ -421,7 +422,7 @@ end
 
 /////////////////////////////////Dot products for banks.///////////////////////////////////////////////////////
 //////////////////////////////Without real accumulator, just add...//////////////////////////////////
-reg  signed        a_input[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //     8*64
+reg                a_input[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //     8*64
 reg  signed [31:0] x_input[`NUM_OF_BANKS-1:0][`NUM_BITS_PER_BANK-1:0]; //32b* 8*64
 
 reg  signed        add_tree_in_valid[`NUM_OF_BANKS-1:0],add_tree_in_valid_pre[`NUM_OF_BANKS-1:0]; //32b* 8*64
@@ -451,33 +452,47 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_stage_input 
         always @(posedge clk) 
         begin 
-            a_input[i][j]     <= buffer_a_rd_data_r[`NUM_BITS_PER_BANK*i+j]; //1 bit
-            x_input[i][j]     <= x_rd_data_r[32*(j+1)-1:32*j]; // 
+            a_input[i][j]     <= buffer_a_rd_data[`NUM_BITS_PER_BANK*i+j]; //1 bit
+            x_input[i][j]     <= x_rd_data[32*(j+1)-1:32*j]; // 
         end 
     end
-    for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_at_input
-        always @(posedge clk)
-            add_tree_in[i][j] <= (a_input[i][j] == 1'b1)? x_input[i][j]:32'b0;
-    end
+//    for( j = 0; j < `NUM_BITS_PER_BANK; j = j + 1) begin: inst_at_input
+//        always @(posedge clk)
+//            add_tree_in[i][j] <= (a_input[i][j] == 1'b1)? x_input[i][j]:32'b0;
+//    end
     //0:::::::Pre at input data valid ...
     always @(posedge clk) 
     begin 
-        add_tree_in_valid_pre[i]<= buffer_a_rd_data_valid_r;
-        add_tree_in_valid[i]    <= add_tree_in_valid_pre[i];
+        add_tree_in_valid[i]    <= buffer_a_rd_data_valid;
+        // add_tree_in_valid[i]    <= add_tree_in_valid_pre[i];
     end 
     //1:::::::add tree which brings a 6-cycles latency. ...
-    sgd_adder_tree #(
-        .TREE_DEPTH (`BIT_WIDTH_OF_BANK), //2**8 = 64 
+    
+    sgd_dsp_add_tree #(
+        .TREE_DEPTH (`BIT_WIDTH_OF_BANK), //2**3 = 8 
         .TREE_TRI_DEPTH(`BIT_TRI_WIDTH_OF_BANK)
-    ) inst_ax (
-        .clk              ( clk                   ),
-        .rst_n            ( rst_n                 ),
-        .v_input          ( add_tree_in[i]        ),
-        .v_input_valid    ( add_tree_in_valid[i]  ),
+    ) inst_acc_gradient_b (
+        .clk              ( clk                     ),
+        .rst_n            ( rst_n                   ),
+        .v_input          ( x_input[i]              ),
+        .v_input_valid    ( add_tree_in_valid[i]    ),
+        .v_input_enable   ( a_input[i]              ),
+        .v_output         ( add_tree_out[i]         ),   //output...
+        .v_output_valid   ( add_tree_out_valid[i]   ) 
+    );    
+    
+//    sgd_addr_tree #(
+//        .TREE_DEPTH (`BIT_WIDTH_OF_BANK), //2**8 = 64 
+//        .TREE_TRI_DEPTH(`BIT_TRI_WIDTH_OF_BANK)
+//    ) inst_ax (
+//        .clk              ( clk                   ),
+//        .rst_n            ( rst_n                 ),
+//        .v_input          ( add_tree_in[i]        ),
+//        .v_input_valid    ( add_tree_in_valid[i]  ),
 
-        .v_output         ( add_tree_out[i]       ),   //output...
-        .v_output_valid   ( add_tree_out_valid[i] ) 
-    ); 
+//        .v_output         ( add_tree_out[i]       ),   //output...
+//        .v_output_valid   ( add_tree_out_valid[i] ) 
+//    ); 
 
     assign add_tree_out_shift_wire[i]   = {add_tree_out[i], 4'b0 }; //{4{add_tree_out[i][0]}}&{4{add_tree_out[i][31]}}
     //at input valid ...

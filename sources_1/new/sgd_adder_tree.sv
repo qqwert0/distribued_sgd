@@ -55,7 +55,7 @@ generate
     for(b = 0; b < TREE_TRI_WIDTH; b = b+1)begin
     reg              input_flag;
         always @(posedge clk)begin
-            if(b >TREE_WIDTH)
+            if(b > (TREE_WIDTH - 1))
                 input_flag                        <= 1;
             else
                 input_flag                        <= 0;
@@ -85,17 +85,17 @@ generate
 
     always @(posedge clk) 
     begin 
-        if(~rst_n) 
-            v_intermdiate_result_valid[d]  <= 1'b0;
-        else
-        begin
+        // if(~rst_n) 
+        //     v_intermdiate_result_valid[d]  <= 1'b0;
+        // else
+        // begin
             if(d == 0) begin
                 v_intermdiate_result_valid[d]     <= v_input_valid;
             end 
             else begin
                 v_intermdiate_result_valid[d]     <= v_intermdiate_result_valid[d-1];
             end             
-        end
+        // end
     end
 end 
 endgenerate        

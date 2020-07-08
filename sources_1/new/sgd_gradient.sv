@@ -122,15 +122,15 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     //data will be valid after two cycles..
     always @(posedge clk) begin    
         loss_pre_valid[i]          <= fifo_a_rd_en;
-        loss_pre1_valid[i]         <= loss_pre_valid[i];
+        // loss_pre1_valid[i]         <= loss_pre_valid[i];
         // loss_pre2_valid[i]         <= loss_pre1_valid[i];
-        loss_valid[i]              <= loss_pre1_valid[i];
+        loss_valid[i]              <= loss_pre_valid[i];
     end
     //Fixme, the latency may not be enough...
     always @(posedge clk) begin  
-        loss_pre1[i]                <= staged_axy[i]; 
+        loss[i]                    <= staged_axy[i]; 
         // loss_pre1[i]               <= loss_pre[i]; 
-        loss[i]                    <= loss_pre1[i];
+        // loss[i]                    <= loss_pre1[i];
     end
 
 
@@ -186,30 +186,42 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
     end
 
     //2-cycle latency.... from (loss, loss_valid) --> (v_gradient_b, v_gradient_b_valid)
-    for (j = 0; j < `NUM_OF_BANKS; j = j+1) 
-    begin: inst_2_cycle
-        always @(posedge clk) begin    
-            v_gradient_b[i][j]    <= (v_a[i][j] == 1'b1)? v_loss[i][j]:32'b0;
-            // v_gradient_b_r[i][j]  <= v_gradient_b[i][j];
-        end
-    end
-    always @(posedge clk) begin
-        v_gradient_b_valid[i]     <= v_loss_valid[i];
-        // v_gradient_b_valid_r[i]   <= v_gradient_b_valid[i];
-    end
+//    for (j = 0; j < `NUM_OF_BANKS; j = j+1) 
+//    begin: inst_2_cycle
+//        always @(posedge clk) begin    
+//            v_gradient_b[i][j]    <= (v_a[i][j] == 1'b1)? v_loss[i][j]:32'b0;
+//            // v_gradient_b_r[i][j]  <= v_gradient_b[i][j];
+//        end
+//    end
+//    always @(posedge clk) begin
+//        v_gradient_b_valid[i]     <= v_loss_valid[i];
+//        // v_gradient_b_valid_r[i]   <= v_gradient_b_valid[i];
+//    end
 
-
-    sgd_adder_tree #(
+    sgd_dsp_add_tree #(
         .TREE_DEPTH (`NUM_OF_BANKS_WIDTH), //2**3 = 8 
         .TREE_TRI_DEPTH(`NUM_OF_BANKS_TRI_WIDTH)
     ) inst_acc_gradient_b (
         .clk              ( clk                     ),
         .rst_n            ( rst_n                   ),
-        .v_input          ( v_gradient_b[i]         ),
-        .v_input_valid    ( v_gradient_b_valid[i]   ),
+        .v_input          ( v_loss[i]               ),
+        .v_input_valid    ( v_loss_valid[i]         ),
+        .v_input_enable   ( v_a[i]                  ),
         .v_output         ( acc_gradient_b[i]       ),   //output...
         .v_output_valid   ( acc_gradient_b_valid[i] ) 
     ); 
+
+//    sgd_adder_tree #(
+//        .TREE_DEPTH (`NUM_OF_BANKS_WIDTH), //2**3 = 8 
+//        .TREE_TRI_DEPTH(`NUM_OF_BANKS_TRI_WIDTH)
+//    ) inst_acc_gradient_b (
+//        .clk              ( clk                     ),
+//        .rst_n            ( rst_n                   ),
+//        .v_input          ( v_gradient_b[i]         ),
+//        .v_input_valid    ( v_gradient_b_valid[i]   ),
+//        .v_output         ( acc_gradient_b[i]       ),   //output...
+//        .v_output_valid   ( acc_gradient_b_valid[i] ) 
+//    ); 
     assign acc_gradient_b_shift_wire[i]  = { acc_gradient_b[i], 4'b0 }; 
     //shift the 
     always @(posedge clk) 

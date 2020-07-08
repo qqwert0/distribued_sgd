@@ -31,21 +31,43 @@ module hbm_interface(
     input wire                  dma_aresetn,    
 
     //mlweaving parameter
-    input wire                  m_axis_mlweaving_valid,
-    output wire                 m_axis_mlweaving_ready,
-    input wire[511:0]           m_axis_mlweaving_data,
+    input wire [63:0]           addr_a,
+    input wire [63:0]           addr_b,
+    input wire [63:0]           addr_model,
+    input wire [31:0]           mini_batch_size,
+    input wire [31:0]           step_size,
+    input wire [31:0]           number_of_epochs,
+    input wire [31:0]           dimension,
+    input wire [31:0]           number_of_samples,
+    input wire [31:0]           number_of_bits,
+    input wire [31:0]           data_a_length,
+    input wire [31:0]           array_length,
+    input wire [31:0]           channel_choice,
 
     /* DMA INTERFACE */
     //Commands
     axis_mem_cmd.master         m_axis_dma_read_cmd,
-    axis_mem_cmd.master         m_axis_dma_write_cmd,
+    // axis_mem_cmd.master         m_axis_dma_write_cmd,
 
     //Data streams
-    axi_stream.master           m_axis_dma_write_data,
+    // axi_stream.master           m_axis_dma_write_data,
     axi_stream.slave            s_axis_dma_read_data,
     
     /* HBM INTERFACE */
-    axi_mm.master                hbm_axi[31:0]
+    axi_mm.master                hbm_axi[31:0],
+
+    //-------------------------------------------------//
+    output   reg                                   start_um,
+    // input   wire [511:0]                           um_params,
+
+
+    output reg[`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0]   dispatch_axb_a_data_o,
+    output reg[`ENGINE_NUM-1:0]                                         dispatch_axb_a_wr_en_o,
+    input wire [`ENGINE_NUM-1:0]                                   dispatch_axb_a_almost_full,
+
+    output reg                 [32*`NUM_OF_BANKS-1:0]  dispatch_axb_b_data_o,
+    output reg                                         dispatch_axb_b_wr_en_o,
+    input  wire                                    dispatch_axb_b_almost_full
 
     );
     
@@ -131,20 +153,20 @@ module hbm_interface(
 
 
      //axis_clock_converter_512 dma_bench_write_data_cc_inst (
-      axis_register_slice512 inst_axis_register_slice_write (
-      .aclk(dma_clk),                    // input wire aclk
-      .aresetn(dma_aresetn),              // input wire aresetn
-      .s_axis_tvalid(m_axis_reg_write_data.valid),  // input wire s_axis_tvalid
-      .s_axis_tready(m_axis_reg_write_data.ready),  // output wire s_axis_tready
-      .s_axis_tdata(m_axis_reg_write_data.data),    // input wire [511 : 0] s_axis_tdata
-      .s_axis_tkeep(m_axis_reg_write_data.keep),    // input wire [63 : 0] s_axis_tkeep
-      .s_axis_tlast(m_axis_reg_write_data.last),    // input wire s_axis_tlast
-      .m_axis_tvalid(m_axis_dma_write_data.valid),  // output wire m_axis_tvalid
-      .m_axis_tready(m_axis_dma_write_data.ready),  // input wire m_axis_tready
-      .m_axis_tdata(m_axis_dma_write_data.data),    // output wire [511 : 0] m_axis_tdata
-      .m_axis_tkeep(m_axis_dma_write_data.keep),    // output wire [63 : 0] m_axis_tkeep
-      .m_axis_tlast(m_axis_dma_write_data.last)    // output wire m_axis_tlast
-      );
+//      axis_register_slice512 inst_axis_register_slice_write (
+//      .aclk(dma_clk),                    // input wire aclk
+//      .aresetn(dma_aresetn),              // input wire aresetn
+//      .s_axis_tvalid(m_axis_reg_write_data.valid),  // input wire s_axis_tvalid
+//      .s_axis_tready(m_axis_reg_write_data.ready),  // output wire s_axis_tready
+//      .s_axis_tdata(m_axis_reg_write_data.data),    // input wire [511 : 0] s_axis_tdata
+//      .s_axis_tkeep(m_axis_reg_write_data.keep),    // input wire [63 : 0] s_axis_tkeep
+//      .s_axis_tlast(m_axis_reg_write_data.last),    // input wire s_axis_tlast
+//      .m_axis_tvalid(m_axis_dma_write_data.valid),  // output wire m_axis_tvalid
+//      .m_axis_tready(m_axis_dma_write_data.ready),  // input wire m_axis_tready
+//      .m_axis_tdata(m_axis_dma_write_data.data),    // output wire [511 : 0] m_axis_tdata
+//      .m_axis_tkeep(m_axis_dma_write_data.keep),    // output wire [63 : 0] m_axis_tkeep
+//      .m_axis_tlast(m_axis_dma_write_data.last)    // output wire m_axis_tlast
+//      );
 
     //  axis_data_fifo_512_cc hbm_bench_write_data_cc_inst (
     //  .s_axis_aresetn(hbm_rstn),
@@ -164,93 +186,14 @@ module hbm_interface(
     //  );
 
 
-    wire                    m_axis_hbm_mlweaving_valid;
-    wire                    m_axis_hbm_mlweaving_ready;
-    wire[511:0]             m_axis_hbm_mlweaving_data;
-
-
-    axis_clock_converter_512 axis_clock_converter_mlweaving_parameter (
-    .s_axis_aresetn(dma_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(dma_clk),        // input wire s_axis_aclk
-    .s_axis_tvalid(m_axis_mlweaving_valid),    // input wire s_axis_tvalid
-    .s_axis_tready(m_axis_mlweaving_ready),    // output wire s_axis_tready
-    .s_axis_tdata(m_axis_mlweaving_data),
-    
-    .m_axis_aclk(hbm_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(hbm_rstn),  // input wire m_axis_aresetn
-    .m_axis_tvalid(m_axis_hbm_mlweaving_valid),    // output wire m_axis_tvalid
-    .m_axis_tready(m_axis_hbm_mlweaving_ready),    // input wire m_axis_tready
-    .m_axis_tdata(m_axis_hbm_mlweaving_data)      // output wire [511 : 0] m_axis_tdata
-    );
-
-
 
 
 
 
     //MLWEAVING PARAMETER REG
-    reg [63:0]                  addr_a;
-    reg [63:0]                  addr_b;
-    reg [63:0]                  addr_model;
-    reg [31:0]                  mini_batch_size;
-    reg [31:0]                  step_size;
-    reg [31:0]                  number_of_epochs;
-    reg [31:0]                  dimension;
-    reg [31:0]                  number_of_samples;
-    reg [31:0]                  number_of_bits; 
-    reg [31:0]                  data_a_length;
     reg [31:0]                  data_b_length;
-    reg [31:0]                  array_length;
-    reg [31:0]                  channel_choice;
     wire                        hbm_write_done;
     reg [4:0]                   b_data_channel;
-
-    assign m_axis_hbm_mlweaving_ready = 1'b1; 
-
-    always @(posedge hbm_clk) begin
-        if(~hbm_rstn) begin
-            addr_a                      <= 0; 
-            addr_b                      <= 0;
-            addr_model                  <= 0;
-            mini_batch_size             <= 0;
-            step_size                   <= 0;
-            number_of_epochs            <= 0;
-            dimension                   <= 0;    
-            number_of_samples           <= 0;
-            number_of_bits              <= 0; 
-            data_a_length               <= 0;
-            array_length                <= 0;
-            channel_choice              <= 0;
-        end
-        else if(m_axis_hbm_mlweaving_ready && m_axis_hbm_mlweaving_valid) begin
-            addr_a                      <= m_axis_hbm_mlweaving_data[ 63:0  ]; 
-            addr_b                      <= m_axis_hbm_mlweaving_data[127:64 ];
-            addr_model                  <= m_axis_hbm_mlweaving_data[191:128];
-            mini_batch_size             <= m_axis_hbm_mlweaving_data[223:192];
-            step_size                   <= m_axis_hbm_mlweaving_data[255:224];
-            number_of_epochs            <= m_axis_hbm_mlweaving_data[287:256];
-            dimension                   <= m_axis_hbm_mlweaving_data[319:288];    
-            number_of_samples           <= m_axis_hbm_mlweaving_data[351:320];
-            number_of_bits              <= m_axis_hbm_mlweaving_data[383:352];   
-            data_a_length               <= m_axis_hbm_mlweaving_data[415:384];
-            array_length                <= m_axis_hbm_mlweaving_data[447:416];
-            channel_choice              <= m_axis_hbm_mlweaving_data[479:448];
-        end
-        else begin
-            addr_a                      <= addr_a; 
-            addr_b                      <= addr_b;
-            addr_model                  <= addr_model;
-            mini_batch_size             <= mini_batch_size;
-            step_size                   <= step_size;
-            number_of_epochs            <= number_of_epochs;
-            dimension                   <= dimension;    
-            number_of_samples           <= number_of_samples;
-            number_of_bits              <= number_of_bits; 
-            data_a_length               <= data_a_length;
-            array_length                <= array_length; 
-            channel_choice              <= channel_choice;      
-        end 
-    end
 
 
     always @(posedge hbm_clk) begin
@@ -335,8 +278,8 @@ module hbm_interface(
     wire [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_out;
     reg  [`ENGINE_NUM*2-1:0][255:0]   hbm_read_a_data_o;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en;
-    reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en_r;
-    reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_rd_en;
+    (* max_fanout = 64 *)reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_wr_en_r;
+    (* max_fanout = 64 *)reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_rd_en;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_almost_full;
     wire [`ENGINE_NUM*2-1:0]          hbm_read_a_empty;
     reg  [`ENGINE_NUM*2-1:0]          hbm_read_a_valid_o;
@@ -344,15 +287,15 @@ module hbm_interface(
 
 
     reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data;
-    reg  [4:0][`ENGINE_NUM-1:0][511:0]dispatch_axb_a_data_r;
+    reg  [`ENGINE_NUM-1:0][511:0]     dispatch_axb_a_data_r1,dispatch_axb_a_data_r2,dispatch_axb_a_data_r3,dispatch_axb_a_data_r4;
     wire [`ENGINE_NUM*2-1:0][255:0]   dispatch_axb_b_data;
-    reg  [4:0][255:0]                 dispatch_axb_b_data_r;  
+    reg  [255:0]                      dispatch_axb_b_data_r1,dispatch_axb_b_data_r2,dispatch_axb_b_data_r3,dispatch_axb_b_data_r4;  
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en;
-    reg  [4:0][`ENGINE_NUM-1:0]       dispatch_axb_a_wr_en_r;
+    reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en_r1,dispatch_axb_a_wr_en_r2,dispatch_axb_a_wr_en_r3,dispatch_axb_a_wr_en_r4;
     wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
-    reg  [4:0]                        dispatch_axb_b_wr_en_r;
+    reg                               dispatch_axb_b_wr_en_r1,dispatch_axb_b_wr_en_r2,dispatch_axb_b_wr_en_r3,dispatch_axb_b_wr_en_r4;
     wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
-    reg  [4:0][`ENGINE_NUM-1:0]       dispatch_axb_a_almost_full_r;
+    reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full_r1,dispatch_axb_a_almost_full_r2,dispatch_axb_a_almost_full_r3,dispatch_axb_a_almost_full_r4;
     wire                              almost_full;
 
 
@@ -532,6 +475,9 @@ module hbm_interface(
  	    .rd_sum_cnt()
     );  
 
+
+
+
     always @(posedge hbm_clk) begin
         hbm_read_a_wr_en_r[i*2]         <= hbm_read_a_wr_en[i*2];
         hbm_read_a_wr_en_r[i*2+1]       <= hbm_read_a_wr_en[i*2+1];
@@ -580,7 +526,7 @@ module hbm_interface(
     end       
 
     always @(posedge user_clk) begin
-        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r[4][i])) begin
+        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r1[i])) begin
             hbm_read_a_rd_en[i*2]       <= 1'b1;
             hbm_read_a_rd_en[i*2+1]     <= 1'b1;
         end
@@ -590,19 +536,38 @@ module hbm_interface(
         end            
     end  
 
+///////add reg
+     always @(posedge user_clk) begin
+        dispatch_axb_a_almost_full_r1[i]<= dispatch_axb_a_almost_full[i];
+        dispatch_axb_a_data_o[i]       <= dispatch_axb_a_data[i];
+        dispatch_axb_a_wr_en_o[i]      <= dispatch_axb_a_wr_en[i];
+    end  
+
+
     end
     endgenerate
 
 
-     always @(posedge user_clk) begin
-        dispatch_axb_a_almost_full_r    <= {dispatch_axb_a_almost_full_r[3:0],dispatch_axb_a_almost_full};
-        dispatch_axb_a_data_r           <= {dispatch_axb_a_data_r[3:0],dispatch_axb_a_data};
-        dispatch_axb_a_wr_en_r          <= {dispatch_axb_a_wr_en_r[3:0],dispatch_axb_a_wr_en};
-    end    
+    always @(posedge hbm_clk)begin
+        dispatch_axb_b_data_r1                  <= dispatch_axb_b_data[`ENGINE_NUM];
+        dispatch_axb_b_data_o                  <= dispatch_axb_b_data_r1;
+        dispatch_axb_b_wr_en_r1                 <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+        dispatch_axb_b_wr_en_o                 <= dispatch_axb_b_wr_en_r1;
+    end
+
+    always @(posedge hbm_clk) begin
+        start_um                        <= hbm_write_done;
+    end 
+
+    //  always @(posedge user_clk) begin
+    //     dispatch_axb_a_almost_full_r    <= {dispatch_axb_a_almost_full_r[3:0],dispatch_axb_a_almost_full};
+    //     dispatch_axb_a_data_r           <= {dispatch_axb_a_data_r[3:0],dispatch_axb_a_data};
+    //     dispatch_axb_a_wr_en_r          <= {dispatch_axb_a_wr_en_r[3:0],dispatch_axb_a_wr_en};
+    // end    
 
 
-    wire [511:0]                     back_data;
-    wire                             back_valid;
+    // wire [511:0]                     back_data;
+    // wire                             back_valid;
     // reg [7:0]                       channel_choice_r;
 
     // always @(posedge hbm_clk)begin
@@ -638,84 +603,71 @@ module hbm_interface(
     //     end
     // end
 
-always @(posedge hbm_clk)begin
-    dispatch_axb_b_data_r[0]                <= dispatch_axb_b_data[`ENGINE_NUM];
-    dispatch_axb_b_data_r[4:1]              <= dispatch_axb_b_data_r[3:0];
-    dispatch_axb_b_wr_en_r[0]               <= dispatch_axb_b_wr_en[`ENGINE_NUM];
-    dispatch_axb_b_wr_en_r[4:1]             <= dispatch_axb_b_wr_en_r[3:0];
-end
+// always @(posedge hbm_clk)begin
+//     dispatch_axb_b_data_r[0]                <= dispatch_axb_b_data[`ENGINE_NUM];
+//     dispatch_axb_b_data_r[4:1]              <= dispatch_axb_b_data_r[3:0];
+//     dispatch_axb_b_wr_en_r[0]               <= dispatch_axb_b_wr_en[`ENGINE_NUM];
+//     dispatch_axb_b_wr_en_r[4:1]             <= dispatch_axb_b_wr_en_r[3:0];
+// end
 
 
-sgd_top_bw #( 
-    .DATA_WIDTH_IN               (4),
-    .MAX_DIMENSION_BITS          (18)
-)sgd_top_bw_inst (    
-    .clk                                (user_clk),
-    .rst_n                              (hbm_rstn),
-    .dma_clk                            (dma_clk),
-    .hbm_clk                            (hbm_clk),
-    //-------------------------------------------------//
-    .start_um                           (hbm_write_done),
-    // .um_params                          (m_axis_mlweaving_data),
+// sgd_top_bw #( 
+//     .DATA_WIDTH_IN               (4),
+//     .MAX_DIMENSION_BITS          (18)
+// )sgd_top_bw_inst (    
+//     .clk                                (user_clk),
+//     .rst_n                              (hbm_rstn),
+//     .dma_clk                            (dma_clk),
+//     .hbm_clk                            (hbm_clk),
+//     //-------------------------------------------------//
+//     .start_um                           (hbm_write_done),
+//     // .um_params                          (m_axis_mlweaving_data),
 
-    .addr_model                         (addr_model),
-    .mini_batch_size                    (mini_batch_size),
-    .step_size                          (step_size),
-    .number_of_epochs                   (number_of_epochs),
-    .dimension                          (dimension),
-    .number_of_samples                  (number_of_samples),
-    .number_of_bits                     (number_of_bits),
+//     .addr_model                         (addr_model),
+//     .mini_batch_size                    (mini_batch_size),
+//     .step_size                          (step_size),
+//     .number_of_epochs                   (number_of_epochs),
+//     .dimension                          (dimension),
+//     .number_of_samples                  (number_of_samples),
+//     .number_of_bits                     (number_of_bits),
 
-    .um_done                            (),
-    .um_state_counters                  (),
+//     .um_done                            (),
+//     .um_state_counters                  (),
 
 
-    .dispatch_axb_a_data                (dispatch_axb_a_data_r[4]),
-    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en_r[4]),
-    .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
+//     .dispatch_axb_a_data                (dispatch_axb_a_data_r4),
+//     .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en_r4),
+//     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-    .dispatch_axb_b_data                (dispatch_axb_b_data_r[4]),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r[4]),
-    .dispatch_axb_b_almost_full         (),
-    //---------------------Memory Inferface:write----------------------------//
-    //cmd
-    .x_data_send_back_start             (x_data_send_back_start),
-    .x_data_send_back_addr              (x_data_send_back_addr),
-    .x_data_send_back_length            (x_data_send_back_length),
+//     .dispatch_axb_b_data                (dispatch_axb_b_data_r4),
+//     .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en_r4),
+//     .dispatch_axb_b_almost_full         (),
+//     //---------------------Memory Inferface:write----------------------------//
+//     //cmd
+//     .x_data_send_back_start             (x_data_send_back_start),
+//     .x_data_send_back_addr              (x_data_send_back_addr),
+//     .x_data_send_back_length            (x_data_send_back_length),
 
-    //data
-    .x_data_out                         (back_data),
-    .x_data_out_valid                   (back_valid),
-    .x_data_out_almost_full             (almost_full)
+//     //data
+//     .x_data_out                         (back_data),
+//     .x_data_out_valid                   (back_valid),
+//     .x_data_out_almost_full             (almost_full)
 
-);
-   hbm_send_back  u_hbm_send_back (
-       .hbm_clk                                            ( dma_clk                                            ),
-       .hbm_aresetn                                        ( dma_aresetn                                        ),
-       .m_axis_dma_write_cmd                               ( m_axis_dma_write_cmd                                ),
-       .m_axis_dma_write_data                              ( m_axis_reg_write_data                               ),
-       .start                                              ( x_data_send_back_start                              ),
-       .addr_x                                             ( x_data_send_back_addr                               ),
-       .data_length                                        ( x_data_send_back_length                             ),
-       .back_data                                          ( back_data                                           ),
-       .back_valid                                         ( back_valid                                          ),
+// );
+//    hbm_send_back  u_hbm_send_back (
+//        .hbm_clk                                            ( dma_clk                                            ),
+//        .hbm_aresetn                                        ( dma_aresetn                                        ),
+//        .m_axis_dma_write_cmd                               ( m_axis_dma_write_cmd                                ),
+//        .m_axis_dma_write_data                              ( m_axis_reg_write_data                               ),
+//        .start                                              ( x_data_send_back_start                              ),
+//        .addr_x                                             ( x_data_send_back_addr                               ),
+//        .data_length                                        ( x_data_send_back_length                             ),
+//        .back_data                                          ( back_data                                           ),
+//        .back_valid                                         ( back_valid                                          ),
 
-       .almost_full                                        ( almost_full                                         )
-   );
-
-    // hbm_send_back  u_hbm_send_back (
-    //     .hbm_clk                                            ( hbm_clk                                             ),
-    //     .hbm_aresetn                                        ( hbm_rstn                                            ),
-    //     .m_axis_dma_write_cmd                               ( m_axis_dma_to_hbm_write_cmd                         ),
-    //     .m_axis_dma_write_data                              ( m_axis_dma_to_hbm_write_data                        ),
-    //     .start                                              ( hbm_write_done                                      ),
-    //     .addr_x                                             ( addr_model                                          ),
-    //     .data_length                                        ( data_length                                         ),
-    //     .back_data                                          ( back_data                                           ),
-    //     .back_valid                                         ( back_valid                                          ),
-
-    //     .almost_full                                        ( almost_full                                         )
-    // );   
+//        .almost_full                                        ( almost_full                                         )
+//    );
+   
 
 // ila_hbm_inf ila_hbm_inf_inst (
 // 	.clk(hbm_clk), // input wire clk

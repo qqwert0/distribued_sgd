@@ -75,7 +75,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
     reg                                     writing_x_to_host_memory_en_r,writing_x_to_host_memory_en_r2,writing_x_to_host_memory_en_r3,writing_x_to_host_memory_en_r4;
     reg [1:0]                               inner_index;
-    reg [8:0][1:0]                          inner_index_r;
+    (* keep = "true" , max_fanout = 200 *)reg [8:0][1:0]                          inner_index_r;
     reg [3:0]                               engine_index;
     reg [8:0][3:0]                          engine_index_r;
     reg [31:0]                              dimension_index,dimension_index_r,dimension_minus;  
@@ -291,7 +291,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
 
 
     indepen_fifo_512w_512r_64d indepen_fifo_512w_512r_64d_inst (
-        .rst(~rst_n),              // input wire rst
+        .rst(1'b0),              // input wire rst
         .wr_clk(clk),        // input wire wr_clk
         .rd_clk(dma_clk),        // input wire rd_clk
         .din(x_to_mem_wr_data[i]),              // input wire [511 : 0] din

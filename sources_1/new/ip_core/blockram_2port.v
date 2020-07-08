@@ -16,7 +16,9 @@
 `timescale 1 ps / 1 ps
 // synopsys translate_on
 module  blockram_2port #(parameter DATA_WIDTH      = 64,    
-                         parameter DEPTH_BIT_WIDTH = 9
+                         parameter DEPTH_BIT_WIDTH = 9,
+						 parameter INIT_FILE = "none",
+                         parameter INIT_PARAM = "0"
 )  (
     clock,
     data,
@@ -54,16 +56,16 @@ module  blockram_2port #(parameter DATA_WIDTH      = 64,
       .CASCADE_HEIGHT(0),             // DECIMAL
       .CLOCKING_MODE("common_clock"), // String
       .ECC_MODE("no_ecc"),            // String
-      .MEMORY_INIT_FILE("none"),      // String
-      .MEMORY_INIT_PARAM("0"),        // String
+      .MEMORY_INIT_FILE(INIT_FILE),      // String
+      .MEMORY_INIT_PARAM(INIT_PARAM),        // String
       .MEMORY_OPTIMIZATION("true"),   // String
       .MEMORY_PRIMITIVE("auto"),      // String
       .MEMORY_SIZE(2**DEPTH_BIT_WIDTH*DATA_WIDTH),             // DECIMAL
       .MESSAGE_CONTROL(0),            // DECIMAL
       .READ_DATA_WIDTH_A(DATA_WIDTH),         // DECIMAL
       .READ_DATA_WIDTH_B(DATA_WIDTH),         // DECIMAL
-      .READ_LATENCY_A(3),             // DECIMAL
-      .READ_LATENCY_B(3),             // DECIMAL
+      .READ_LATENCY_A(2),             // DECIMAL
+      .READ_LATENCY_B(2),             // DECIMAL
       .READ_RESET_VALUE_A("0"),       // String
       .READ_RESET_VALUE_B("0"),       // String
       .RST_MODE_A("SYNC"),            // String

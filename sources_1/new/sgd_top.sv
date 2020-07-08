@@ -85,184 +85,62 @@ wire hbm_clk_100M;
 //user clk
 
 
-
-
 // DMA Signals
 axis_mem_cmd    axis_dma_read_cmd();
 axis_mem_cmd    axis_dma_write_cmd();
 axi_stream      axis_dma_read_data();
 axi_stream      axis_dma_write_data();
 
-//mlweaving parameter
-reg         	m_axis_mlweaving_valid;
-wire         	m_axis_mlweaving_ready;
-reg[511:0]  	m_axis_mlweaving_data;
-
-//test dma speed
-reg [31:0]		rd_cnt;
-reg [31:0]		wr_cnt;
-
-/*
- * PCIe Signals
- */
-wire pcie_lnk_up;
-wire pcie_ref_clk;
-wire pcie_ref_clk_gt;
-wire perst_n;
-
-// PCIe user clock & reset
-wire pcie_clk;
-wire pcie_aresetn;
 
 
-  // Ref clock buffer
-  IBUFDS_GTE4 # (.REFCLK_HROW_CK_SEL(2'b00)) refclk_ibuf (.O(pcie_ref_clk_gt), .ODIV2(pcie_ref_clk), .I(sys_clk_p), .CEB(1'b0), .IB(sys_clk_n));
-  // Reset buffer
-  IBUF   sys_reset_n_ibuf (.O(perst_n), .I(sys_rst_n));
+wire[511:0][31:0]     fpga_control_reg;
+wire[511:0][31:0]     fpga_status_reg; 
 
-/*
- * DMA Signals
- */
-//Axi Lite Control Bus
-axi_lite        axil_control();
-axi_mm          axim_control();
-
-wire        c2h_dsc_byp_load_0;
-wire        c2h_dsc_byp_ready_0;
-wire[63:0]  c2h_dsc_byp_addr_0;
-wire[31:0]  c2h_dsc_byp_len_0;
-
-wire        h2c_dsc_byp_load_0;
-wire        h2c_dsc_byp_ready_0;
-wire[63:0]  h2c_dsc_byp_addr_0;
-wire[31:0]  h2c_dsc_byp_len_0;
-
-axi_stream  axis_dma_c2h();
-axi_stream  axis_dma_h2c();
-
-wire[7:0] c2h_sts_0;
-wire[7:0] h2c_sts_0;
-
-
-    
-/*
- * DMA Driver
- */
-dma_driver dma_driver_inst (
-  .sys_clk(pcie_ref_clk),                                       // input wire sys_clk
-  .sys_clk_gt(pcie_ref_clk_gt),
-  .sys_rst_n(perst_n),                                          // input wire sys_rst_n
-  .user_lnk_up(pcie_lnk_up),                                    // output wire user_lnk_up
-  .pcie_tx_p(pcie_tx_p),                                        // output wire [7 : 0] pci_exp_txp
-  .pcie_tx_n(pcie_tx_n),                                        // output wire [7 : 0] pci_exp_txn
-  .pcie_rx_p(pcie_rx_p),                                        // input wire [7 : 0] pci_exp_rxp
-  .pcie_rx_n(pcie_rx_n),                                        // input wire [7 : 0] pci_exp_rxn
-  .pcie_clk(pcie_clk),                                          // output wire axi_aclk
-  .pcie_aresetn(pcie_aresetn),                                  // output wire axi_aresetn
-  //.usr_irq_req(1'b0),                                         // input wire [0 : 0] usr_irq_req
-  //.usr_irq_ack(),                                             // output wire [0 : 0] usr_irq_ack
-  //.msi_enable(),                                              // output wire msi_enable
-  //.msi_vector_width(),                                        // output wire [2 : 0] msi_vector_width
-  
- // Axi Lite Control Master interface   
-  .m_axil(axil_control),
-  // AXI MM Control Interface 
-  .m_axim(axim_control),
-
-  // AXI Stream Interface
-  .s_axis_c2h_data(axis_dma_c2h),
-  .m_axis_h2c_data(axis_dma_h2c),
-
-  // Descriptor Bypass
-  .c2h_dsc_byp_ready_0    (c2h_dsc_byp_ready_0),
-  //.c2h_dsc_byp_src_addr_0 (64'h0),
-  .c2h_dsc_byp_addr_0     (c2h_dsc_byp_addr_0),
-  .c2h_dsc_byp_len_0      (c2h_dsc_byp_len_0),
-  //.c2h_dsc_byp_ctl_0      (16'h13), //was 16'h3
-  .c2h_dsc_byp_load_0     (c2h_dsc_byp_load_0),
-  
-  .h2c_dsc_byp_ready_0    (h2c_dsc_byp_ready_0),
-  .h2c_dsc_byp_addr_0     (h2c_dsc_byp_addr_0),
-  //.h2c_dsc_byp_dst_addr_0 (64'h0),
-  .h2c_dsc_byp_len_0      (h2c_dsc_byp_len_0),
-  //.h2c_dsc_byp_ctl_0      (16'h13), //was 16'h3
-  .h2c_dsc_byp_load_0     (h2c_dsc_byp_load_0),
-  
-  .c2h_sts_0(c2h_sts_0),                                          // output wire [7 : 0] c2h_sts_0
-  .h2c_sts_0(h2c_sts_0)                                           // output wire [7 : 0] h2c_sts_0
-);    
-    
-
-// XDMA taget application
-  xdma_app #(
-    .C_M_AXI_ID_WIDTH(4)
-  ) xdma_app_i (
-
-    // Axi Lite Control interface
-    //.s_axil(axil_control),
-    // AXI MM Control Interface
-    .s_axim(axim_control),
-
-    // AXI Stream Interface
-    // .m_axis_c2h_data(axis_dma_c2h),
-    // .s_axis_h2c_data(axis_dma_h2c),
-
-      .user_clk(pcie_clk),
-      .user_resetn(pcie_aresetn),
-      .user_lnk_up(user_lnk_up),
-      .sys_rst_n(perst_n),
-
-      .leds()
-  );
-
-
+wire[31:0][511:0]     bypass_control_reg;
+wire[31:0][511:0]     bypass_status_reg;
 
 /*
  * DMA Interface
  */
 
 dma_inf dma_interface (
-    .pcie_clk(pcie_clk),
-    .pcie_aresetn(pcie_aresetn),
-    .user_clk(pcie_clk),
-    .user_aresetn(pcie_aresetn),
+	/*HPY INTERFACE */
+	.pcie_tx_p						(pcie_tx_p),    // output wire [15 : 0] pci_exp_txp
+	.pcie_tx_n						(pcie_tx_n),    // output wire [15 : 0] pci_exp_txn
+	.pcie_rx_p						(pcie_rx_p),    // input wire [15 : 0] pci_exp_rxp
+	.pcie_rx_n						(pcie_rx_n),    // input wire [15 : 0] pci_exp_rxn
 
-    // USER INTERFACE 
+    .sys_clk_p						(sys_clk_p),
+    .sys_clk_n						(sys_clk_n),
+    .sys_rst_n						(sys_rst_n), 
+
+    /* USER INTERFACE */
+    //pcie clock output
+    .pcie_clk						(pcie_clk),
+    .pcie_aresetn					(pcie_aresetn),
+	 
+	//user clock input
+    .user_clk						(pcie_clk),
+    .user_aresetn					(pcie_aresetn),
+
+    //DMA Commands 
     .s_axis_dma_read_cmd            (axis_dma_read_cmd),
     .s_axis_dma_write_cmd           (axis_dma_write_cmd),
-
+	//DMA Data streams
     .m_axis_dma_read_data           (axis_dma_read_data),
     .s_axis_dma_write_data          (axis_dma_write_data),
+ 
 
-    //mlweaving parameter
-    .m_axis_mlweaving_valid             (m_axis_mlweaving_valid),
-    .m_axis_mlweaving_ready             (m_axis_mlweaving_ready),
-    .m_axis_mlweaving_data              (m_axis_mlweaving_data), 
-
-	////test dma speed
-	.rd_cnt							(rd_cnt),
-	.wr_cnt							(wr_cnt),				
-
-    // DRIVER INTERFACE 
+    // CONTROL INTERFACE 
     // Control interface
-    .s_axil(axil_control),
+    .fpga_control_reg               (fpga_control_reg),
+	.fpga_status_reg                (fpga_status_reg)
 
-    // Data
-    .m_axis_c2h_data(axis_dma_c2h),
-    .s_axis_h2c_data(axis_dma_h2c),
-
-    .c2h_dsc_byp_load_0(c2h_dsc_byp_load_0),
-    .c2h_dsc_byp_ready_0(c2h_dsc_byp_ready_0),
-    .c2h_dsc_byp_addr_0(c2h_dsc_byp_addr_0),
-    .c2h_dsc_byp_len_0(c2h_dsc_byp_len_0),
-
-    .h2c_dsc_byp_load_0(h2c_dsc_byp_load_0),
-    .h2c_dsc_byp_ready_0(h2c_dsc_byp_ready_0),
-    .h2c_dsc_byp_addr_0(h2c_dsc_byp_addr_0),
-    .h2c_dsc_byp_len_0(h2c_dsc_byp_len_0),
-
-    .c2h_sts_0(c2h_sts_0),
-    .h2c_sts_0(h2c_sts_0)
+`ifdef XDMA_BYPASS		
+    // bypass register
+	,.bypass_control_reg 			(bypass_control_reg),
+	.bypass_status_reg  			(bypass_status_reg)
+`endif
 
 );
 
@@ -278,6 +156,33 @@ hbm_driver inst_hbm_driver(
     .hbm_rstn(hbm_rstn)
     );
 
+wire								start_um;
+wire [63:0]                  		addr_model;
+wire [31:0]                  		mini_batch_size;
+wire [31:0]                  		step_size;
+wire [31:0]                  		number_of_epochs;
+wire [31:0]                  		dimension;
+wire [31:0]                  		number_of_samples;
+wire [31:0]                  		number_of_bits; 
+
+
+wire  [`ENGINE_NUM-1:0][511:0]     	dispatch_axb_a_data;
+wire [255:0]                      	dispatch_axb_b_data; 
+wire  [`ENGINE_NUM-1:0]            	dispatch_axb_a_wr_en;
+wire                            	dispatch_axb_b_wr_en;
+wire [`ENGINE_NUM-1:0]            	dispatch_axb_a_almost_full;
+
+//---------------------Memory Inferface:write----------------------------//
+//cmd
+wire                                     x_data_send_back_start;
+wire[63:0]                               x_data_send_back_addr;
+wire[31:0]                               x_data_send_back_length;
+
+    //data
+wire[511:0]                              x_data_out;
+wire                                     x_data_out_valid;
+wire                                     x_data_out_almost_full;
+
 
 hbm_interface inst_hbm_interface(
     .user_clk(user_clk),
@@ -288,24 +193,115 @@ hbm_interface inst_hbm_interface(
 
     .dma_clk(pcie_clk),
     .dma_aresetn(pcie_aresetn), 
-    //mlweaving parameter
-    .m_axis_mlweaving_valid(m_axis_mlweaving_valid),
-    .m_axis_mlweaving_ready(m_axis_mlweaving_ready),
-    .m_axis_mlweaving_data(m_axis_mlweaving_data),
+	//mlweaving parameter
+    .addr_a								({fpga_control_reg[21],fpga_control_reg[20]}),
+    .addr_b								({fpga_control_reg[23],fpga_control_reg[22]}),	
+    .addr_model                         ({fpga_control_reg[25],fpga_control_reg[24]}),
+    .mini_batch_size                    (fpga_control_reg[26]),
+    .step_size                          (fpga_control_reg[27]),
+    .number_of_epochs                   (fpga_control_reg[28]),
+    .dimension                          (fpga_control_reg[29]),
+    .number_of_samples                  (fpga_control_reg[30]),
+    .number_of_bits                     (fpga_control_reg[31]), 
+    .data_a_length						(fpga_control_reg[32]),
+    .array_length						(fpga_control_reg[33]),
+    .channel_choice						(fpga_control_reg[34]),
+
+
 
     /* DMA INTERFACE */
     //Commands
     .m_axis_dma_read_cmd(axis_dma_read_cmd),
-    .m_axis_dma_write_cmd(axis_dma_write_cmd),
+    // .m_axis_dma_write_cmd(axis_dma_write_cmd),
 
     //Data streams
-    .m_axis_dma_write_data(axis_dma_write_data),
+    // .m_axis_dma_write_data(axis_dma_write_data),
     .s_axis_dma_read_data(axis_dma_read_data),
     
     /* HBM INTERFACE */
-    .hbm_axi(hbm_axi)
+    .hbm_axi(hbm_axi),
+
+    /* sgd calculate*/
+	//parameter
+    .start_um                           (start_um),
+
+
+    .dispatch_axb_a_data_o              (dispatch_axb_a_data),
+    .dispatch_axb_a_wr_en_o             (dispatch_axb_a_wr_en),
+    .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
+
+    .dispatch_axb_b_data_o              (dispatch_axb_b_data),
+    .dispatch_axb_b_wr_en_o             (dispatch_axb_b_wr_en),
+    .dispatch_axb_b_almost_full         ()
 
     );
+
+//SGD 
+sgd_top_bw #( 
+    .DATA_WIDTH_IN               (4),
+    .MAX_DIMENSION_BITS          (18),
+    .SLR0_ENGINE_NUM                                (0),
+    .SLR1_ENGINE_NUM                                (4),
+    .SLR2_ENGINE_NUM                                (4)
+
+)sgd_top_bw_inst (    
+    .clk                                (user_clk),
+    .rst_n                              (hbm_rstn),
+    .dma_clk                            (pcie_clk),
+    .hbm_clk                            (hbm_clk),
+    //-------------------------------------------------//
+    .start_um                           (start_um),
+    // .um_params                          (m_axis_mlweaving_data),
+
+    .addr_model                         (addr_model),
+    .mini_batch_size                    (mini_batch_size),
+    .step_size                          (step_size),
+    .number_of_epochs                   (number_of_epochs),
+    .dimension                          (dimension),
+    .number_of_samples                  (number_of_samples),
+    .number_of_bits                     (number_of_bits),
+
+    .um_done                            (),
+    .um_state_counters                  (),
+
+
+    .dispatch_axb_a_data                (dispatch_axb_a_data),
+    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
+    .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
+
+    .dispatch_axb_b_data                (dispatch_axb_b_data),
+    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en),
+    .dispatch_axb_b_almost_full         (),
+    //---------------------Memory Inferface:write----------------------------//
+    //cmd
+    .x_data_send_back_start             (x_data_send_back_start),
+    .x_data_send_back_addr              (x_data_send_back_addr),
+    .x_data_send_back_length            (x_data_send_back_length),
+
+    //data
+    .x_data_out                         (x_data_out),
+    .x_data_out_valid                   (x_data_out_valid),
+    .x_data_out_almost_full             (x_data_out_almost_full)
+
+);
+
+
+   hbm_send_back  u_hbm_send_back (
+       .hbm_clk                                            ( pcie_clk                                            ),
+       .hbm_aresetn                                        ( hbm_rstn                                           ),
+       .m_axis_dma_write_cmd                               ( axis_dma_write_cmd                                ),
+       .m_axis_dma_write_data                              ( axis_dma_write_data                               ),
+       .start                                              ( x_data_send_back_start                              ),
+       .addr_x                                             ( x_data_send_back_addr                               ),
+       .data_length                                        ( x_data_send_back_length                             ),
+       .back_data                                          ( x_data_out                                           ),
+       .back_valid                                         ( x_data_out_valid                                          ),
+
+       .almost_full                                        ( x_data_out_almost_full                                         )
+   );
+
+
+
 //////////////////hbm debug/////////////////
 
 

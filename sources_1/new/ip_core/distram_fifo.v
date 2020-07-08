@@ -38,7 +38,8 @@ module  distram_fifo #(
 
     //Warning, when only item is in the fifo, the signal empty is not asserted in the next cycle. I am not sure 
     //whether the read side can get the correct data. Maybe the rd signal should be asserted in the next cycle after identying the deassertion of empty. .
-    reg  [FIFO_DEPTH_BITS - 1:0]        wr_addr, rd_addr; 
+    (* keep = "true" , max_fanout = 200 *)reg  [FIFO_DEPTH_BITS - 1:0]        wr_addr; 
+    (* keep = "true" , max_fanout = 200 *)reg  [FIFO_DEPTH_BITS - 1:0]        rd_addr;
     //reg  [FIFO_DEPTH_BITS    :0]        count;
 
     wire rd_valid = re & (~empty);

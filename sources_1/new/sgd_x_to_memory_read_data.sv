@@ -34,7 +34,7 @@ module sgd_x_to_memory_read_data(
 
     ///////////////////rd part of x_updated_fifo//////////////////////
     input   wire [`ENGINE_NUM-1:0][511:0]          x_to_mem_rd_data,
-    output  reg  [`ENGINE_NUM-1:0]                 x_to_mem_rd_en,
+    (* max_fanout = 64 *)output  reg  [`ENGINE_NUM-1:0]                 x_to_mem_rd_en,
     input   wire [`ENGINE_NUM-1:0]                 x_to_mem_empty,
 
 

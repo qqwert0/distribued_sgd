@@ -199,7 +199,7 @@ inde_fifo_256w_128d inst_b_fifo (
 
 
 
-wire signed          [31:0] buffer_b_rd_data_signed[`NUM_OF_BANKS-1:0];
+reg signed           [31:0] buffer_b_rd_data_signed[`NUM_OF_BANKS-1:0];
 reg signed           [31:0] ax_dot_product_reg[`NUM_OF_BANKS-1:0], ax_dot_product_reg2[`NUM_OF_BANKS-1:0];         //cycle synchronization. 
 reg                         ax_dot_product_valid_reg[`NUM_OF_BANKS-1:0], ax_dot_product_valid_reg2[`NUM_OF_BANKS-1:0];
 reg signed           [31:0] ax_minus_b_result[`NUM_OF_BANKS-1:0];          //
@@ -218,7 +218,9 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
     end
 
 
-    assign buffer_b_rd_data_signed[i] = buffer_b_rd_data[32*(i+1)-1:32*i];
+    always @(posedge clk) begin
+            buffer_b_rd_data_signed[i] <= buffer_b_rd_data[32*(i+1)-1:32*i];
+    end
     
     always @(posedge clk) begin
         if(~rst_n) 
