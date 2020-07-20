@@ -34,13 +34,13 @@ module tb_add_tree(
     initial begin
         clk = 1;
         rst_n = 0;
-        v_input_valid = 0;
+        v_input_valid <= 0;
         #200
         rst_n = 1;
         #100
-        v_input_valid = 1;
+        v_input_valid <= 1;
         #10
-        v_input_valid = 0;
+        v_input_valid <= 0;
     end
 
     //generate end generate
@@ -55,13 +55,13 @@ module tb_add_tree(
 //                v_input_enable[i] =  ~v_input_enable[i];
 //        end
         initial begin
-            v_input_enable[i] = i;
+            v_input_enable[i] <= i;
             #400
-            v_input_enable[i] = ~v_input_enable[i];
+            v_input_enable[i] <= ~v_input_enable[i];
             #30
-            v_input_enable[i] = ~v_input_enable[i];
+            v_input_enable[i] <= ~v_input_enable[i];
             #30
-            v_input_enable[i] = ~v_input_enable[i];                        
+            v_input_enable[i] <= ~v_input_enable[i];                        
         end
     end
     endgenerate
@@ -69,9 +69,9 @@ module tb_add_tree(
     for(i = 0; i < 8; i++) begin
         always @(posedge clk)begin
             if(~rst_n)
-                v_input[i] =  i;
+                v_input[i] <=  i;
             else 
-                v_input[i] =  v_input[i] + 1;
+                v_input[i] <=  v_input[i] + 1;
         end
     end
     endgenerate
@@ -80,7 +80,8 @@ module tb_add_tree(
     always #5 clk = ~clk;
 
 sgd_dsp_add_tree #(
-    .TREE_DEPTH          (3)
+    .TREE_DEPTH          (3),
+    .TREE_TRI_DEPTH(0)
 )inst(
     .clk(clk),
     .rst_n(rst_n),

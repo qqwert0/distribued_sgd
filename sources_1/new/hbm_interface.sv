@@ -43,7 +43,9 @@ module hbm_interface(
     input wire [31:0]           data_a_length,
     input wire [31:0]           array_length,
     input wire [31:0]           channel_choice,
+    input wire                      start,
 
+    output wire [63:0][31:0]    hbm_status,
     /* DMA INTERFACE */
     //Commands
     axis_mem_cmd.master         m_axis_dma_read_cmd,
@@ -185,8 +187,12 @@ module hbm_interface(
     //  .m_axis_tlast(m_axis_reg_write_data.last)
     //  );
 
+    reg                         start_d1,start_d2;
 
-
+    always @(posedge hbm_clk) begin
+        start_d1    <= start;
+        start_d2    <= start_d1;
+    end 
 
 
 
@@ -230,7 +236,7 @@ module hbm_interface(
 
     //signal
 
-    .start                  (m_axis_hbm_mlweaving_ready & m_axis_hbm_mlweaving_valid),
+    .start                  (start_d1 & ~start_d2),
     .data_a_length          (data_a_length),  //need to multiple of 512
     .data_b_length          (data_b_length),  //need to multiple of 512
     .dma_addr_a             (addr_a),
@@ -242,6 +248,11 @@ module hbm_interface(
     .araddr_stride          (array_length),    
     .hbm_write_done         (hbm_write_done),              
 
+    .hbm_waddr_state        (hbm_status[0]),
+    .hbm_wdata_state        (hbm_status[1]),
+    .hbm_write_cycle_cnt    (hbm_status[2]),
+    .hbm_write_addr_cnt     (hbm_status[3]),
+    .hbm_write_data_cnt     (hbm_status[4]),    
     /* HBM INTERFACE */
     //Write addr (output)
     .m_axi_AWADDR     (hbm_axi[`B_DATA_CHANNEL].awaddr  ), //wr byte address
@@ -294,7 +305,7 @@ module hbm_interface(
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_wr_en_r1,dispatch_axb_a_wr_en_r2,dispatch_axb_a_wr_en_r3,dispatch_axb_a_wr_en_r4;
     wire [`ENGINE_NUM*2-1:0]          dispatch_axb_b_wr_en;
     reg                               dispatch_axb_b_wr_en_r1,dispatch_axb_b_wr_en_r2,dispatch_axb_b_wr_en_r3,dispatch_axb_b_wr_en_r4;
-    wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
+//    wire [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full;
     reg  [`ENGINE_NUM-1:0]            dispatch_axb_a_almost_full_r1,dispatch_axb_a_almost_full_r2,dispatch_axb_a_almost_full_r3,dispatch_axb_a_almost_full_r4;
     wire                              almost_full;
 
@@ -392,7 +403,7 @@ module hbm_interface(
         .m_axi_ARQOS(hbm_axi[i*2+1].arqos)   , //rd no
         .m_axi_ARREGION(hbm_axi[i*2+1].arregion), //rd no
         .m_axi_ARUSER()  ,
-        .m_axi_ARREADY(hbm_axi[i*4+1].arready),  //rd ready to accept address.
+        .m_axi_ARREADY(hbm_axi[i*2+1].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
         .rd_addr_cnt()
 
@@ -525,16 +536,19 @@ module hbm_interface(
         dispatch_axb_a_wr_en[i]         <= hbm_read_a_valid_o[i*2];
     end       
 
-    always @(posedge user_clk) begin
-        if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r1[i])) begin
-            hbm_read_a_rd_en[i*2]       <= 1'b1;
-            hbm_read_a_rd_en[i*2+1]     <= 1'b1;
-        end
-        else begin
-            hbm_read_a_rd_en[i*2]       <= 1'b0;
-            hbm_read_a_rd_en[i*2+1]     <= 1'b0;
-        end            
-    end  
+    // always @(posedge user_clk) begin
+    //     if((~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r1[i])) begin
+    //         hbm_read_a_rd_en[i*2]       <= 1'b1;
+    //         hbm_read_a_rd_en[i*2+1]     <= 1'b1;
+    //     end
+    //     else begin
+    //         hbm_read_a_rd_en[i*2]       <= 1'b0;
+    //         hbm_read_a_rd_en[i*2+1]     <= 1'b0;
+    //     end            
+    // end
+    assign hbm_read_a_rd_en[i*2]        = (~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r1[i]);
+    assign hbm_read_a_rd_en[i*2+1]      = (~hbm_read_a_empty[i*2+1]) && (~hbm_read_a_empty[i*2]) && (~dispatch_axb_a_almost_full_r1[i]);
+    
 
 ///////add reg
      always @(posedge user_clk) begin
@@ -546,6 +560,28 @@ module hbm_interface(
 
     end
     endgenerate
+
+
+//ila_4 ila_hbm (
+//	.clk(hbm_clk), // input wire clk
+
+
+//	.probe0({hbm_read_a_data_in_r[1],hbm_read_a_data_in_r[0]}), // input wire [511:0]  probe0  
+//	.probe1(hbm_read_a_wr_en_r[0]), // input wire [0:0]  probe1 
+//	.probe2(hbm_read_a_almost_full[0]), // input wire [0:0]  probe2 
+//	.probe3(hbm_read_a_wr_en_r[1]) // input wire [0:0]  probe3
+//);
+
+ila_4 ila_user (
+	.clk(user_clk), // input wire clk
+
+
+	.probe0(dispatch_axb_a_data[0]), // input wire [511:0]  probe0  
+	.probe1(dispatch_axb_a_wr_en[0]), // input wire [0:0]  probe1 
+	.probe2(hbm_read_a_rd_en[0]), // input wire [0:0]  probe2 
+	.probe3(dispatch_axb_a_almost_full_r1[0]) // input wire [0:0]  probe3
+);
+
 
 
     always @(posedge hbm_clk)begin

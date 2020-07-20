@@ -22,7 +22,7 @@
 `timescale 1ns / 1ps
 //`default_nettype none
 
-`include "example_module.vh"
+`include "sgd_defines.vh"
 
 module dma_inf(
     /*HPY INTERFACE */

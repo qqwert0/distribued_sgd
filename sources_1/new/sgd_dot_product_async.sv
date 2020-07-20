@@ -126,7 +126,7 @@ reg  [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0]         buffer_a_rd_data_r;
 
 //on-chip buffer for a 
 distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
-                 .FIFO_DEPTH_BITS ( 6                   ) //depth 
+                 .FIFO_DEPTH_BITS ( 7                   ) //depth 
 ) inst_a_buffer0 (
     .clk        (clk),
     .reset_n    (rst_n),
@@ -150,7 +150,7 @@ distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS),
 
 //on-chip buffer for a 
 distram_fifo #( .FIFO_WIDTH      (`NUM_BITS_PER_BANK*`NUM_OF_BANKS), 
-                 .FIFO_DEPTH_BITS ( 6                  ) //depth 
+                 .FIFO_DEPTH_BITS ( 7                  ) //depth 
 ) inst_a_buffer1 (
     .clk        (clk),
     .reset_n    (rst_n),
@@ -336,7 +336,7 @@ always@(posedge clk) begin
             //This state indicates that "b" is loaded from memory.....
             BANK_CHECK_X_STATE:
             begin
-                if (1)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
+                if (x_credit_available)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
                 begin
                     //if ( not_the_last_sample ) //sample_index != numSamples
                     x_rd_credit_counter   <= x_rd_credit_counter + 8'b1;
@@ -367,7 +367,7 @@ always@(posedge clk) begin
 
                     //////////////////////////////Output////////////////////////////// 
                     //buffer_a_rd_en           <= 1'b1;
-                    buffer_a_rd_en[0]        <= 1'b1; //[`NUM_OF_BANKS-1:0]
+                    buffer_a_rd_en        <= 2'b01; //[`NUM_OF_BANKS-1:0]
                     if (numBits_index == 5'h0)
                     begin
                         x_rd_en           <= 1'b1;  //[`NUM_OF_BANKS-1:0]
@@ -399,7 +399,7 @@ always@(posedge clk) begin
 
                     //////////////////////////////Output////////////////////////////// 
                     //buffer_a_rd_en           <= 1'b1;
-                    buffer_a_rd_en[1]        <= 1'b1; //[`NUM_OF_BANKS-1:0]
+                    buffer_a_rd_en        <= 2'b10; //[`NUM_OF_BANKS-1:0]
                     if (numBits_index == 5'h0)
                     begin
                         x_rd_en           <= 1'b1;  //[`NUM_OF_BANKS-1:0]
@@ -585,7 +585,7 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
             if ( adder_tree_first_bit_en_r[i] ) //first of vector
                 ax_dot_product[i]           <= add_tree_out_shift_r[i] + 36'hb;
             else                                        //add  
-                ax_dot_product[i]           <= ax_dot_product[i] +  ( add_tree_out_shift_zero_flag[i])? 36'h0:add_tree_out_shift_r[i] ; //add_tree_out_shift[i] ;//
+                ax_dot_product[i]           <= ax_dot_product[i] +  (( add_tree_out_shift_zero_flag[i])? 36'h0:add_tree_out_shift_r[i]) ; //add_tree_out_shift[i] ;//
         end
     end
 
@@ -597,5 +597,32 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
 
 end 
 endgenerate
+
+
+`ifdef SIM
+
+integer testfile;
+
+initial begin
+    testfile      = $fopen( "/home/amax/hhj/distributed_sgd/distributed_input_a.txt" , "w"); 
+    
+end
+
+  always @(posedge clk)begin
+      if(buffer_a_rd_data_valid)
+          $fwrite(testfile, "%h\n",buffer_a_rd_data);
+  end
+  
+
+always @(posedge clk)begin
+    if(writing_x_to_host_memory_done) begin
+        $fclose(testfile);
+    end
+end
+
+
+`endif
+
+
 
 endmodule

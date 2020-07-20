@@ -13,5 +13,5 @@ set_property LOC [get_package_pins -of_objects [get_bels [get_sites -filter {NAM
 
 
 
-set_false_path -from [get_cells */fpga_control_reg[*]]
-set_false_path -to [get_cells */fpga_status_reg[*]]
+#set_false_path -from [get_cells */fpga_control_reg[*]]
+#set_false_path -to [get_cells */fpga_status_reg[*]]

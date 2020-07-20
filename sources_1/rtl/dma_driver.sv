@@ -22,7 +22,7 @@
 
 `timescale 1ns / 1ps
 //`default_nettype none
-`include "example_module.vh"
+`include "sgd_defines.vh"
 module dma_driver(
     input wire          sys_clk,
     input wire          sys_clk_gt,

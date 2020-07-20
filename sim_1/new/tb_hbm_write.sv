@@ -91,11 +91,11 @@ wire[511:0]  	m_axis_mlweaving_data;
             mini_batch_size  <= 16;
             step_size        <= 16;
             number_of_epochs <= 3;
-            dimension        <= 1;    
-            number_of_samples<= 7200;
+            dimension        <= 10;    
+            number_of_samples<= 16;
             number_of_bits   <= 8;  
-            data_a_length    <= 7200*300;  
-            array_length     <= 7200*2*32;
+            data_a_length    <= 4096;  
+            array_length     <= 5120;
     end
 
     always @(posedge hbm_clk) begin 
@@ -218,7 +218,7 @@ hbm_write inst_hbm_write(
     .number_of_samples(number_of_samples),  
     .dimension(dimension),
     .number_of_bits(number_of_bits),  
-    .araddr_stride(araddr_stride),   
+    .araddr_stride(array_length),   
 
     .hbm_write_done(),               
 

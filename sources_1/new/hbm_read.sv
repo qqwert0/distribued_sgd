@@ -326,24 +326,24 @@ module hbm_read#(
     end    
 
 
-//ila_hbm_read ila_hbm_read_inst (
-//	.clk(hbm_clk), // input wire clk
+ila_hbm_read ila_hbm_read_inst (
+	.clk(hbm_clk), // input wire clk
 
 
-//	.probe0(m_axi_ARVALID), // input wire [0:0]  probe0  
-//	.probe1(m_axi_ARREADY), // input wire [0:0]  probe1 
-//	.probe2(m_axi_ARID), // input wire [5:0]  probe2 
-//	.probe3(m_axi_ARADDR), // input wire [32:0]  probe3 
-//	.probe4(epoch_index), // input wire [31:0]  probe4 
-//	.probe5(addr_b_index), // input wire [31:0]  probe5 
-//	.probe6(addr_a_index), // input wire [31:0]  probe6 
-//	.probe7(a_bits_cnt), // input wire [7:0]  probe7 
-//	.probe8(a_sample_cnt), // input wire [31:0]  probe8 
-//	.probe9(a_feature_cnt), // input wire [31:0]  probe9 
-//	.probe10(cstate) // input wire [7:0]  probe10 
-////	.probe11(rd_sum_cnt), // input wire [31:0]  probe11
-////    .probe12(rd_addr_cnt) // input wire [31:0]  probe12
-//);
+	.probe0(m_axi_ARVALID), // input wire [0:0]  probe0  
+	.probe1(m_axi_ARREADY), // input wire [0:0]  probe1 
+	.probe2(m_axi_ARID), // input wire [5:0]  probe2 
+	.probe3(m_axi_ARADDR), // input wire [32:0]  probe3 
+	.probe4(epoch_index), // input wire [31:0]  probe4 
+	.probe5(addr_b_index), // input wire [31:0]  probe5 
+	.probe6(addr_a_index), // input wire [31:0]  probe6 
+	.probe7(a_bits_cnt), // input wire [7:0]  probe7 
+	.probe8(a_sample_cnt), // input wire [31:0]  probe8 
+	.probe9(a_feature_cnt), // input wire [31:0]  probe9 
+	.probe10(cstate) // input wire [7:0]  probe10 
+//	.probe11(rd_sum_cnt), // input wire [31:0]  probe11
+//    .probe12(rd_addr_cnt) // input wire [31:0]  probe12
+);
 // ila_hbm_read ila_hbm_read_inst (
 // 	.clk(hbm_clk), // input wire clk
 

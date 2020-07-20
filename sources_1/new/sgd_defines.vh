@@ -391,9 +391,9 @@ endinterface
 `define NUM_BITS_PER_BANK        `NUM_BITS_PER_CL/`NUM_OF_BANKS
 `define BIT_WIDTH_OF_BANK        9-`NUM_OF_BANKS_WIDTH
 `define BIT_TRI_WIDTH_OF_BANK    4
-`define ENGINE_NUM               8
-`define ENGINE_NUM_WIDTH         3
-`define ENGINE_NUM_TRI_WIDTH     2
+`define ENGINE_NUM               1
+`define ENGINE_NUM_WIDTH         0
+`define ENGINE_NUM_TRI_WIDTH     0
 `define B_DATA_CHANNEL           `ENGINE_NUM
 //////////////////////////End of Bank///////////////////////////////////
 
@@ -414,7 +414,7 @@ endinterface
 
 `define NUM_ALIGN_TO_BITS        64 //More bits for arithmic operation...
 
-
+`define FPGA_VERSION 20200709
 
 `endif
 
@@ -422,6 +422,10 @@ endinterface
 //`define SLR0
 //`endif
 
-`ifndef SLR2
-`define SLR2
+//`ifndef SLR2
+//`define SLR2
+//`endif
+
+`ifndef SIM
+`define SIM
 `endif

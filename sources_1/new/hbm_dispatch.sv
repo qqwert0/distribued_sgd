@@ -89,7 +89,7 @@ always @(posedge clk) begin
     end
 end
 
-reg [31:0] wr_a_counter, wr_b_counter;
+//reg [31:0] wr_a_counter, wr_b_counter;
 always @(posedge clk) begin
     if(~rst_n) 
     begin
@@ -269,18 +269,18 @@ end
             rd_sum_cnt                       <= rd_sum_cnt;
     end
 
-//ila_dispatch ila_dispatch_inst (
-//	.clk(clk), // input wire clk
+ila_dispatch ila_dispatch_inst (
+	.clk(clk), // input wire clk
 
 
-//	.probe0(m_axi_RVALID), // input wire [0:0]  probe0  
-//	.probe1(m_axi_RREADY), // input wire [0:0]  probe1 
-//	.probe2(m_axi_RLAST), // input wire [0:0]  probe2 
-//	.probe3(m_axi_RDATA), // input wire [255:0]  probe3
-//    .probe4(m_axi_RID) // input wire [5:0]  probe4
-////    .probe5(wr_a_counter), // input wire [31:0]  probe5 
-////	.probe6(wr_b_counter) // input wire [31:0]  probe6
-//);
+	.probe0(m_axi_RVALID), // input wire [0:0]  probe0  
+	.probe1(m_axi_RREADY), // input wire [0:0]  probe1 
+	.probe2(m_axi_RLAST), // input wire [0:0]  probe2 
+	.probe3(m_axi_RDATA), // input wire [255:0]  probe3
+    .probe4(m_axi_RID) // input wire [5:0]  probe4
+//    .probe5(wr_a_counter), // input wire [31:0]  probe5 
+//	.probe6(wr_b_counter) // input wire [31:0]  probe6
+);
 
 //  ila_dispatch ila_dispatch_inst (
 //  	.clk(clk), // input wire clk

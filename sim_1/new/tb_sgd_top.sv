@@ -38,7 +38,7 @@ module tb_sgd_bw_top(
     reg [31:0] number_of_samples;
     reg [31:0] number_of_bits;    
 
-    reg[31:0] a[1866496:0];
+    reg[511:0] a[29056:0];
     reg[31:0] b[7291:0];
 
 
@@ -74,13 +74,14 @@ module tb_sgd_bw_top(
             step_size        <= 16;
             number_of_epochs <= 3;
             dimension        <= 256;    
-            number_of_samples<= 7200;
+            number_of_samples<= 7264;
             number_of_bits   <= 8;    
     end
 
 
     initial begin
-        $readmemh("/home/amax/hhj/distributed_sgd/a_ups.txt",a,0,1866496);
+        // $readmemh("/home/amax/hhj/distributed_sgd/a_ups.txt",a,0,1866496);
+        $readmemh("/home/amax/hhj/distributed_sgd/c_seq.txt",a,0,29056);
         $readmemh("/home/amax/hhj/distributed_sgd/b_ups.txt",b,0,7291);
         clk = 1'b1;
         rst_n = 1'b0;
@@ -107,44 +108,44 @@ begin
     reg                     dimension_flag;
     reg [31:0]              dimension_cnt;
     reg [31:0]              a_sample_cnt;
-    wire [31:0]              a_addr;
+    reg [31:0]              a_addr;
 
-    always @(posedge clk)begin
-        if(~rst_n) begin
-            bits_cnt                        <= 0;
-            bits_flag                       <= 0;
-            dimension_flag                  <= 0;
-            dimension_cnt                   <= 0;
-            a_sample_cnt                    <= 0;
-        end
-        else if(dispatch_axb_a_wr_en[i]) begin
-            bits_flag <= bits_flag + 1;
-            if(bits_flag) begin
-                dimension_flag <= dimension_flag +1;
-                if(dimension_flag) begin
-                    bits_cnt <= bits_cnt + 2;
-                    if(bits_cnt >= number_of_bits - 2) begin 
-                        bits_cnt <= 0;
-                        dimension_cnt <= dimension_cnt + `NUM_BITS_PER_BANK * `ENGINE_NUM * 2;
-                        if(dimension_cnt >= (dimension-`NUM_BITS_PER_BANK * `ENGINE_NUM * 2)) begin
-                            dimension_cnt <= 0;
-                            a_sample_cnt <= a_sample_cnt + `NUM_OF_BANKS;
-                            if(a_sample_cnt >= number_of_samples - `NUM_OF_BANKS) begin
+    // always @(posedge clk)begin
+    //     if(~rst_n) begin
+    //         bits_cnt                        <= 0;
+    //         bits_flag                       <= 0;
+    //         dimension_flag                  <= 0;
+    //         dimension_cnt                   <= 0;
+    //         a_sample_cnt                    <= 0;
+    //     end
+    //     else if(dispatch_axb_a_wr_en[i]) begin
+    //         bits_flag <= bits_flag + 1;
+    //         if(bits_flag) begin
+    //             dimension_flag <= dimension_flag +1;
+    //             if(dimension_flag) begin
+    //                 bits_cnt <= bits_cnt + 2;
+    //                 if(bits_cnt >= number_of_bits - 2) begin 
+    //                     bits_cnt <= 0;
+    //                     dimension_cnt <= dimension_cnt + `NUM_BITS_PER_BANK * `ENGINE_NUM * 2;
+    //                     if(dimension_cnt >= (dimension-`NUM_BITS_PER_BANK * `ENGINE_NUM * 2)) begin
+    //                         dimension_cnt <= 0;
+    //                         a_sample_cnt <= a_sample_cnt + `NUM_OF_BANKS;
+    //                         if(a_sample_cnt >= number_of_samples - `NUM_OF_BANKS) begin
 
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        else begin
-            bits_cnt                        <= bits_cnt;
-            bits_flag                       <= bits_flag;
-            dimension_flag                  <= dimension_flag;
-            dimension_cnt                   <= dimension_cnt;
-            a_sample_cnt                    <= a_sample_cnt;        
-        end
-    end
+    //                         end
+    //                     end
+    //                 end
+    //             end
+    //         end
+    //     end
+    //     else begin
+    //         bits_cnt                        <= bits_cnt;
+    //         bits_flag                       <= bits_flag;
+    //         dimension_flag                  <= dimension_flag;
+    //         dimension_cnt                   <= dimension_cnt;
+    //         a_sample_cnt                    <= a_sample_cnt;        
+    //     end
+    // end
 
     always @(posedge clk)begin
         if(~rst_n)
@@ -157,12 +158,21 @@ begin
             dispatch_axb_a_wr_en[i]     <= 0;
     end
 
-    assign a_addr = (a_sample_cnt * dimension * 32)/(`NUM_OF_BANKS * `NUM_BITS_PER_BANK) +  (((dimension_cnt + dimension_flag * `NUM_BITS_PER_BANK * `ENGINE_NUM + i * `NUM_BITS_PER_BANK)/2)) + (bits_cnt + bits_flag);
+    // assign a_addr = (a_sample_cnt * dimension * 32)/(`NUM_OF_BANKS * `NUM_BITS_PER_BANK) +  (((dimension_cnt + dimension_flag * `NUM_BITS_PER_BANK * `ENGINE_NUM + i * `NUM_BITS_PER_BANK)/2)) + (bits_cnt + bits_flag);
 
+    always @(posedge clk)begin
+        if(~rst_n)
+            a_addr                      <= 0;
+        else if(dispatch_axb_a_wr_en[i])
+            a_addr                      <= a_addr + 1'b1;
+        else begin
+            a_addr                      <= a_addr;
+        end        
+    end
 
-    assign dispatch_axb_a_data[i]     = {a[a_addr*16+15],a[a_addr*16+14],a[a_addr*16+13],a[a_addr*16+12],a[a_addr*16+11],a[a_addr*16+10],a[a_addr*16+9],a[a_addr*16+8],
-                                        a[a_addr*16+7],a[a_addr*16+6],a[a_addr*16+5],a[a_addr*16+4],a[a_addr*16+3],a[a_addr*16+2],a[a_addr*16+1],a[a_addr*16]};
-
+    // assign dispatch_axb_a_data[i]     = {a[a_addr*16+15],a[a_addr*16+14],a[a_addr*16+13],a[a_addr*16+12],a[a_addr*16+11],a[a_addr*16+10],a[a_addr*16+9],a[a_addr*16+8],
+    //                                     a[a_addr*16+7],a[a_addr*16+6],a[a_addr*16+5],a[a_addr*16+4],a[a_addr*16+3],a[a_addr*16+2],a[a_addr*16+1],a[a_addr*16]};
+    assign dispatch_axb_a_data[i]     = a[a_addr];
 
 end
 endgenerate
@@ -201,7 +211,7 @@ sgd_top_bw #(
     .DATA_WIDTH_IN               (4),
     .MAX_DIMENSION_BITS          (18),
     .SLR0_ENGINE_NUM                                (0),
-    .SLR1_ENGINE_NUM                                (2),
+    .SLR1_ENGINE_NUM                                (1),
     .SLR2_ENGINE_NUM                                (0)
 )sgd_top_bw_inst (
     .clk                                (clk),

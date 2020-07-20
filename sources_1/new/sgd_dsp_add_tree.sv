@@ -40,7 +40,7 @@ module sgd_dsp_add_tree #(
 
     //------------------Output: disptach resp data to b of each bank---------------//
     output  wire signed                     [31:0] v_output, 
-    output  reg                                    v_output_valid 
+    output  wire                                    v_output_valid 
 );
 
 
@@ -134,7 +134,6 @@ begin
 end
 */
 assign v_output       = v_intermdiate_result[TREE_DEPTH-3][0]; 
-always @(posedge clk)
-    v_output_valid <= v_intermdiate_result_valid[TREE_DEPTH-1]; 
+assign v_output_valid = v_intermdiate_result_valid[TREE_DEPTH-1]; 
 
 endmodule

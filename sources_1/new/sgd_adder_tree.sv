@@ -120,8 +120,8 @@ begin
      end
 end
 */
-assign v_output       = v_intermdiate_result[TREE_TRI_DEPTH-1][0]; 
-assign v_output_valid = v_intermdiate_result_valid[TREE_TRI_DEPTH-1]; 
+assign v_output       = (TREE_DEPTH == 0) ? v_input[0] : v_intermdiate_result[TREE_TRI_DEPTH-1][0]; 
+assign v_output_valid = (TREE_DEPTH == 0) ? v_input_valid : v_intermdiate_result_valid[TREE_TRI_DEPTH-1]; 
 
 
 

@@ -185,16 +185,16 @@ module hbm_send_back(
 
 //////debug
 
-//ila_hbm_sendback your_instance_name (
-//	.clk(hbm_clk), // input wire clk
+ila_hbm_sendback your_instance_name (
+	.clk(hbm_clk), // input wire clk
 
 
-//	.probe0(fifo_wr_en), // input wire [0:0]  probe0  
-//	.probe1(fifo_rd_en), // input wire [0:0]  probe1 
-//	.probe2(cstate), // input wire [2:0]  probe2 
-//	.probe3(data_counter), // input wire [31:0]  probe3 
-//	.probe4(data_length_minus) // input wire [31:0]  probe4
-//);
+	.probe0(fifo_wr_en), // input wire [0:0]  probe0  
+	.probe1(fifo_rd_en), // input wire [0:0]  probe1 
+	.probe2(cstate), // input wire [2:0]  probe2 
+	.probe3(data_counter), // input wire [31:0]  probe3 
+	.probe4(data_length_minus) // input wire [31:0]  probe4
+);
 
 
 endmodule

@@ -52,7 +52,11 @@ module hbm_write#(
     input wire [31:0]           araddr_stride,   
 
     output reg                  hbm_write_done,               
-
+    output reg [31:0]           hbm_waddr_state,
+    output reg [31:0]           hbm_wdata_state,
+    output reg [31:0]           hbm_write_cycle_cnt,
+    output reg [31:0]           hbm_write_addr_cnt,
+    output reg [31:0]           hbm_write_data_cnt, 
     /* HBM INTERFACE */
     //Write addr (output)
     output                        m_axi_AWVALID , //wr address valid
@@ -85,6 +89,13 @@ module hbm_write#(
     );           
     //
     reg                                     start_d0,start_d1;
+
+    reg[7:0]                                cstate;
+    reg[7:0]                                nstate;
+
+    reg[7:0]                                wcstate;
+    reg[7:0]                                wnstate;
+
     
     always @(posedge hbm_clk) begin
         start_d0                            <= start;
@@ -112,16 +123,16 @@ module hbm_write#(
     wire                                    dma2hbm_fifo_empty;
     wire                                    dma2hbm_fifo_valid;
     wire [7:0]                              dma2hbm_fifo_count;
-    wire [511:0]                            dma2hbm_fifo_data;
-    reg [511:0]                             dma2hbm_fifo_data_out;
+    wire [256:0]                            dma2hbm_fifo_data;
+    // reg [511:0]                             dma2hbm_fifo_data_out;
     reg                                     dma2hbm_fifo_rd_en_reg;
     reg                                     wdata_valid_reg;
-    reg                                     axi_data_flag,axi_data_flag_r;
+    // reg                                     axi_data_flag,axi_data_flag_r;
 
 
 
     assign s_axis_dma_read_data.ready       = ~dma2hbm_fifo_full;
-    assign dma2hbm_fifo_rd_en               = m_axi_WREADY & dma2hbm_fifo_rd_en_reg & ~axi_data_flag;
+    assign dma2hbm_fifo_rd_en               = m_axi_WREADY & m_axi_WVALID;
     
     always @(posedge hbm_clk)begin
         dma2hbm_fifo_wr_en                  <= s_axis_dma_read_data.ready & s_axis_dma_read_data.valid;
@@ -162,9 +173,10 @@ module hbm_write#(
     .wr_en(dma2hbm_fifo_wr_en),              // input wire wr_en
     .rd_en(dma2hbm_fifo_rd_en),              // input wire rd_en
     .dout(dma2hbm_fifo_data),                // output wire [511 : 0] dout
-    .full(dma2hbm_fifo_full),                // output wire full
+    .full(),                // output wire full
     .empty(dma2hbm_fifo_empty),              // output wire empty
     .valid(dma2hbm_fifo_valid),              // output wire valid
+    .prog_full(dma2hbm_fifo_full),      // output wire prog_full
     .wr_rst_busy(),  // output wire wr_rst_busy
     .rd_rst_busy()  // output wire rd_rst_busy
     );
@@ -183,6 +195,12 @@ module hbm_write#(
     reg [31:0]                              samples_minus;
     reg [31:0]                              bits_minus;
     reg [31:0]                              base_addr;
+
+
+    reg [7:0]                               burst_inc;
+    reg [31:0]                              wr_ops;
+    reg [31:0]                              num_mem_ops_minus_1;
+    reg                                     wr_data_done;
     
     always @(posedge hbm_clk) begin
         dimension_align                 <= (dimension[`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH:0] == 0)? dimension : (dimension[31:`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH+1] + 1) << (`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH+1);
@@ -214,23 +232,20 @@ module hbm_write#(
         
         m_axi_WSTRB       <= {(DATA_WIDTH/8){1'b1}};    
         m_axi_WID         <= {ID_WIDTH{1'b0}};          //maybe play with it. 
-        dma2hbm_fifo_rd_en_d <= dma2hbm_fifo_rd_en;
+        // dma2hbm_fifo_rd_en_d <= dma2hbm_fifo_rd_en;
     end
 
-    always @(posedge hbm_clk) begin
-        if(dma2hbm_fifo_rd_en)
-            dma2hbm_fifo_data_out <= dma2hbm_fifo_data;
-        else
-            dma2hbm_fifo_data_out <= dma2hbm_fifo_data_out;
-    end
+    // always @(posedge hbm_clk) begin
+    //     dma2hbm_fifo_data_out <= dma2hbm_fifo_data;
+    // end
 
     assign m_axi_AWVALID                    = cstate[3] | cstate[6];
     assign m_axi_AWADDR                     = hbm_awaddr;
     assign m_axi_BREADY                     = 1'b1;    //always ready to accept data...
-    assign m_axi_WVALID                     = wdata_valid_reg || axi_data_flag_r;
+    assign m_axi_WVALID                     = (wcstate[2] | wcstate[4]) & ~dma2hbm_fifo_empty;// || axi_data_flag_r;
     assign m_axi_WLAST                      = (burst_inc==m_axi_AWLEN)& m_axi_WVALID &m_axi_WREADY;
 
-    assign m_axi_WDATA                      = axi_data_flag ? dma2hbm_fifo_data_out[511:256] : dma2hbm_fifo_data_out[255:0];
+    assign m_axi_WDATA                      = dma2hbm_fifo_data;
 
 
 
@@ -254,13 +269,15 @@ module hbm_write#(
                                     W_A_DATA            = 8'b00010000,
                                     W_DATA_END          = 8'b00100000,
                                     W_WAIT              = 8'b01000000;
-                                   
+    // localparam [3:0]                WIDLE               = 4'h1,
+    //                                 W_B_DATA_JUDGE      = 4'h2,
+    //                                 W_B_DATA            = 4'h3,
+    //                                 W_A_DATA_JUDGE      = 4'h4,
+    //                                 W_A_DATA            = 4'h5,
+    //                                 W_DATA_END          = 4'h6,
+    //                                 W_WAIT              = 4'h7;                                   
 
-    reg[7:0]                                cstate;
-    reg[7:0]                                nstate;
-
-    reg[7:0]                                wcstate;
-    reg[7:0]                                wnstate;    
+    
 
     always @(posedge hbm_clk)begin
         if(~hbm_aresetn)
@@ -329,7 +346,7 @@ module hbm_write#(
                         nstate              = WRITE_A_ADDR;
                         if(a_sample_cnt >= samples_minus) begin
                             nstate          = LOAD_A_ADDR;
-                            if(channel_num >= (`ENGINE_NUM-1))begin
+                            if(channel_num >= (2 * `ENGINE_NUM-1))begin
                                 nstate          = LOAD_A_ADDR;
                                 if(a_bits_cnt >= bits_minus) begin
                                     nstate      = WRITE_END;
@@ -380,7 +397,7 @@ module hbm_write#(
                 hbm_awaddr                      <= 0;
             end
             LOAD_A_ADDR:begin
-                if(channel_num == (`ENGINE_NUM - 1))begin
+                if(channel_num == (2 * `ENGINE_NUM - 1))begin
                     hbm_awaddr                  <= {channel_num,base_addr[27:0]};  
                     base_addr                   <= base_addr + araddr_stride;
                 end
@@ -398,7 +415,7 @@ module hbm_write#(
                         if(a_sample_cnt >= samples_minus) begin
                             a_sample_cnt    <= 0;
                             channel_num     <= channel_num + 1;
-                            if(channel_num >= (`ENGINE_NUM-1))begin
+                            if(channel_num >= (2 * `ENGINE_NUM-1))begin
                                 channel_num     <= 0;
                                 a_bits_cnt      <= a_bits_cnt + 2;
                                 if(a_bits_cnt >= bits_minus) begin
@@ -418,43 +435,45 @@ module hbm_write#(
 
 
 
-    reg [7:0]                               burst_inc;
-    reg [31:0]                              wr_ops;
-    reg [31:0]                              num_mem_ops_minus_1;
-    reg                                     wr_data_done;
 
 
-    always @(posedge hbm_clk) begin
-        if(~hbm_aresetn) begin
-            wdata_valid_reg     <= 1'b0;
-        end
-        else if(m_axi_WREADY) begin
-            wdata_valid_reg     <= dma2hbm_fifo_rd_en;                 
-        end
-        else begin
-            wdata_valid_reg     <= wdata_valid_reg;
-        end
-    end
+
+    // always @(posedge hbm_clk) begin
+    //     if(~hbm_aresetn) begin
+    //         wdata_valid_reg     <= 1'b0;
+    //     end
+    //     else if(m_axi_WREADY) begin
+    //         wdata_valid_reg     <= dma2hbm_fifo_rd_en;                 
+    //     end
+    //     else begin
+    //         wdata_valid_reg     <= wdata_valid_reg;
+    //     end
+    // end
 
 
     always @(posedge hbm_clk) begin
         if (~hbm_aresetn) begin
             burst_inc                 <=  8'b0;
             wr_ops                    <= 32'b0;
-            wr_data_done              <=  1'b0;
+            // wr_data_done              <=  1'b0;
         end
-        else if (wr_data_done)begin
-            burst_inc                 <=  8'b0;
-            wr_data_done              <=  1'b0;
-            wr_ops                    <= 32'b0;
-        end
+        // else if (wr_data_done & m_axi_WVALID & m_axi_WREADY)begin
+        //     burst_inc                 <=  burst_inc + 8'b1;
+        //     wr_data_done              <=  1'b0;
+        //     wr_ops                    <= 32'b0;
+        // end
+        // else if(wr_data_done) begin
+        //     burst_inc                 <=  1'b0;
+        //     wr_data_done              <=  1'b0;
+        //     wr_ops                    <= 32'b0;            
+        // end
         else if (m_axi_WVALID & m_axi_WREADY) begin
             burst_inc             <= burst_inc + 8'b1;
             if (burst_inc == m_axi_AWLEN)begin
                 burst_inc         <= 8'b0;
                 wr_ops            <= wr_ops + 1'b1;
                 if (wr_ops == num_mem_ops_minus_1)begin
-                    wr_data_done  <=  1'b1;
+                    wr_ops  <=  32'b0;
                 end
             end    
         end        
@@ -464,40 +483,41 @@ module hbm_write#(
         if(~hbm_aresetn) begin
             num_mem_ops_minus_1             <= 32'b0;
         end
-        else if(wcstate[1]) begin
+        else if(wcstate == W_B_DATA_JUDGE) begin
             num_mem_ops_minus_1             <= (data_b_length >> 6) - 1;
         end
-        else if(wcstate[3]) begin
+        else if(wcstate == W_WAIT) begin
             num_mem_ops_minus_1             <= (data_a_length >> 6) - 1;
         end
+        else 
+            num_mem_ops_minus_1             <= num_mem_ops_minus_1;
     end
+
+    // always @(posedge hbm_clk)begin
+    //     if(~hbm_aresetn)
+    //         axi_data_flag                   <= 1'b0;
+    //     else if(dma2hbm_fifo_rd_en & m_axi_WREADY)
+    //         axi_data_flag                   <= 1'b1;   
+    //     else if(axi_data_flag & m_axi_WREADY)
+    //         axi_data_flag                   <= 1'b0;
+    //     else
+    //         axi_data_flag                   <= axi_data_flag;
+    // end
+
+    // always @(posedge hbm_clk)begin
+    //     axi_data_flag_r                     <= axi_data_flag;
+
+    // end
+
 
     always @(posedge hbm_clk)begin
         if(~hbm_aresetn)
-            axi_data_flag                   <= 1'b0;
-        else if(dma2hbm_fifo_rd_en & m_axi_WREADY)
-            axi_data_flag                   <= 1'b1;   
-        else if(axi_data_flag & m_axi_WREADY)
-            axi_data_flag                   <= 1'b0;
-        else
-            axi_data_flag                   <= axi_data_flag;
-    end
-
-    always @(posedge hbm_clk)begin
-        axi_data_flag_r                     <= axi_data_flag;
-
-    end
-
-
-    always @(posedge hbm_clk)begin
-        if(~hbm_aresetn)
-            wcstate                         <= IDLE;
+            wcstate                         <= WIDLE;
         else
             wcstate                         <= wnstate;
     end
         
     always @(*)begin
-        dma2hbm_fifo_rd_en_reg              = 1'b0;
         case(wcstate)
             WIDLE:begin
                 hbm_write_done              = 1'b0;
@@ -509,9 +529,7 @@ module hbm_write#(
                 end
             end
             W_B_DATA_JUDGE:begin
-                dma2hbm_fifo_rd_en_reg      = 1'b0;
                 if(~dma2hbm_fifo_empty) begin
-                    dma2hbm_fifo_rd_en_reg  = 1'b1;
                     wnstate                 = W_B_DATA;
                 end
                 else begin
@@ -519,14 +537,13 @@ module hbm_write#(
                 end
             end
             W_B_DATA:begin
-                dma2hbm_fifo_rd_en_reg  = 1'b1;
                 if(m_axi_WVALID & m_axi_WREADY) begin                    
                     if(m_axi_WLAST) begin
                         if(wr_ops == num_mem_ops_minus_1)begin
                             wnstate         = W_WAIT;
                         end
                         else begin
-                            wnstate         = W_B_DATA_JUDGE;
+                            wnstate         = W_B_DATA;
                         end
                     end
                     else begin
@@ -541,9 +558,7 @@ module hbm_write#(
                 wnstate                     = W_A_DATA_JUDGE;
             end
             W_A_DATA_JUDGE:begin
-                dma2hbm_fifo_rd_en_reg      = 1'b0;
                 if(~dma2hbm_fifo_empty) begin
-                    dma2hbm_fifo_rd_en_reg  = 1'b1;
                     wnstate                 = W_A_DATA;
                 end
                 else begin
@@ -551,14 +566,13 @@ module hbm_write#(
                 end
             end
             W_A_DATA:begin
-                dma2hbm_fifo_rd_en_reg  = 1'b1;
                 if(m_axi_WVALID & m_axi_WREADY) begin
                     if(m_axi_WLAST) begin
                         if(wr_ops == num_mem_ops_minus_1)begin
                             wnstate         = W_DATA_END;
                         end
                         else begin
-                            wnstate         = W_A_DATA_JUDGE;
+                            wnstate         = W_A_DATA;
                         end
                     end
                     else begin
@@ -626,34 +640,41 @@ module hbm_write#(
             wr_data_cnt                       <= wr_data_cnt;
     end
 
+    always @(posedge hbm_clk)begin
+        hbm_waddr_state                         <= cstate;
+        hbm_wdata_state                         <= wcstate;
+        hbm_write_cycle_cnt                     <= wr_sum_cnt;
+        hbm_write_addr_cnt                      <= wr_addr_cnt;
+        hbm_write_data_cnt                      <= wr_data_cnt;   
+    end     
 
 /////////////debug ila////////////////////
 
 
-//ila_hbm_write ila_hbm_write_inst (
-//	.clk(hbm_clk), // input wire clk
+ila_hbm_write ila_hbm_write_inst (
+	.clk(hbm_clk), // input wire clk
 
 
-//	.probe0(m_axi_AWVALID), // input wire [0:0]  probe0  
-//	.probe1(m_axi_AWREADY), // input wire [0:0]  probe1 
-//	.probe2(m_axi_AWADDR), // input wire [32:0]  probe2 
-//	.probe3(m_axi_WVALID), // input wire [0:0]  probe3 
-//	.probe4(m_axi_WREADY), // input wire [0:0]  probe4 
-//	.probe5(m_axi_WLAST), // input wire [0:0]  probe5 
-//	.probe6(m_axi_WDATA), // input wire [255:0]  probe6 
-//	.probe7(dma2hbm_fifo_wr_en), // input wire [0:0]  probe7 
-//   .probe8(dma2hbm_fifo_rd_en), // input wire [0:0]  probe8 
-//	.probe9(wr_addr_cnt), // input wire [31:0]  probe9 
-//	.probe10(wr_data_cnt), // input wire [31:0]  probe10     
-//	.probe11(b_sample_cnt), // input wire [31:0]  probe11 
-//	.probe12(a_feature_cnt), // input wire [31:0]  probe12 
-//	.probe13(a_sample_cnt), // input wire [31:0]  probe13 
-//	.probe14(a_bits_cnt), // input wire [7:0]  probe14 
-//	.probe15(channel_num), // input wire [4:0]  probe15 
-//	.probe16(cstate), // input wire [7:0]  probe16 
-//	.probe17({dma2hbm_fifo_empty,wcstate[6:0]}) // input wire [7:0]  probe17 
-////	.probe18(wr_sum_cnt) // input wire [31:0]  probe18
-//);   
+	.probe0(m_axi_AWVALID), // input wire [0:0]  probe0  
+	.probe1(m_axi_AWREADY), // input wire [0:0]  probe1 
+	.probe2(m_axi_AWADDR), // input wire [32:0]  probe2 
+	.probe3(m_axi_WVALID), // input wire [0:0]  probe3 
+	.probe4(m_axi_WREADY), // input wire [0:0]  probe4 
+	.probe5(m_axi_WLAST), // input wire [0:0]  probe5 
+	.probe6(m_axi_WDATA), // input wire [255:0]  probe6 
+	.probe7(dma2hbm_fifo_wr_en), // input wire [0:0]  probe7 
+   .probe8(dma2hbm_fifo_rd_en), // input wire [0:0]  probe8 
+	.probe9(wr_addr_cnt), // input wire [31:0]  probe9 
+	.probe10(wr_data_cnt), // input wire [31:0]  probe10     
+	.probe11(b_sample_cnt), // input wire [31:0]  probe11 
+	.probe12(a_feature_cnt), // input wire [31:0]  probe12 
+	.probe13(a_sample_cnt), // input wire [31:0]  probe13 
+	.probe14(a_bits_cnt), // input wire [7:0]  probe14 
+	.probe15(channel_num), // input wire [4:0]  probe15 
+	.probe16(cstate), // input wire [7:0]  probe16 
+	.probe17({dma2hbm_fifo_empty,3'b0,wcstate[3:0]}) // input wire [7:0]  probe17 
+//	.probe18(wr_sum_cnt) // input wire [31:0]  probe18
+);   
 
 
 //ila_hbm_write ila_hbm_write_inst (

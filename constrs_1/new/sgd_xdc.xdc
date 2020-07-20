@@ -38,59 +38,52 @@ set_property BITSTREAM.CONFIG.UNUSEDPIN Pullup [current_design]
 set_property BITSTREAM.CONFIG.SPI_32BIT_ADDR Yes [current_design]
 # ------------------------------------------------------------------------
 
-
-#set_false_path -from [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]]
-set_false_path -from [get_clocks {dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/gt_wizard.gtwizard_top_i/xdma_0_pcie4c_ip_gt_i/inst/gen_gtwizard_gtye4_top.xdma_0_pcie4c_ip_gt_gtwizard_gtye4_inst/gen_gtwizard_gtye4.gen_channel_container[24].gen_enabled_channel.gtye4_channel_wrapper_inst/channel_inst/gtye4_channel_gen.gen_gtye4_channel_inst[0].GTYE4_CHANNEL_PRIM_INST/TXOUTCLK}] -to [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]]
-#set_false_path -from [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
-set_false_path -from [get_clocks -of_objects [get_pins dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks {dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/gt_wizard.gtwizard_top_i/xdma_0_pcie4c_ip_gt_i/inst/gen_gtwizard_gtye4_top.xdma_0_pcie4c_ip_gt_gtwizard_gtye4_inst/gen_gtwizard_gtye4.gen_channel_container[24].gen_enabled_channel.gtye4_channel_wrapper_inst/channel_inst/gtye4_channel_gen.gen_gtye4_channel_inst[0].GTYE4_CHANNEL_PRIM_INST/TXOUTCLK}]
+set_false_path -from [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
+set_false_path -from [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]]
 
 set_false_path -from [get_ports sys_rst_n]
 #set_false_path -through [get_pins [list dma_driver_inst/pcie_aresetn inst_hbm_driver/hbm_rstn]]
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]
+#set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]
 set_false_path -from [get_cells inst_hbm_interface/start_um_reg]
 
 #set_false_path -from [get_cells inst_hbm_driver/hbm_rstn_reg]
 #set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]
 #set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr2/rst_n_reg_reg]
-set_false_path -from [get_cells dma_driver_inst/pcie_aresetn_reg]
+#set_false_path -from [get_cells dma_driver_inst/pcie_aresetn_reg]
 
-set_false_path -from [get_cells inst_hbm_interface/addr_a_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/addr_b_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/addr_model_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/mini_batch_size_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/step_size_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/number_of_epochs_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/dimension_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/number_of_samples_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/number_of_bits_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/data_a_length_reg[*]]
-set_false_path -from [get_cells inst_hbm_interface/array_length_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/addr_a_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/addr_b_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/addr_model_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/mini_batch_size_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/step_size_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/number_of_epochs_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/dimension_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/number_of_samples_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/number_of_bits_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/data_a_length_reg[*]]
+#set_false_path -from [get_cells inst_hbm_interface/array_length_reg[*]]
 #set_false_path -from [get_cells inst_hbm_interface/channel_choice_reg*]
 
 
-#create_pblock pblock_sgd_top_bw_inst
-#resize_pblock pblock_sgd_top_bw_inst -add SLR1:SLR1 
-#resize_pblock pblock_sgd_top_bw_inst -add SLR0:SLR0 
-#add_cells_to_pblock pblock_sgd_top_bw_inst [get_cells [list inst_hbm_interface/sgd_top_bw_inst]]
 
 
-create_pblock pblock_sgd_top_bw_inst1
-resize_pblock pblock_sgd_top_bw_inst1 -add SLR1:SLR1
-add_cells_to_pblock pblock_sgd_top_bw_inst1 [get_cells [list sgd_top_bw_inst/inst_sgd_top_bw_slr1]]
+#create_pblock pblock_sgd_top_bw_inst1
+#resize_pblock pblock_sgd_top_bw_inst1 -add SLR1:SLR1
+#add_cells_to_pblock pblock_sgd_top_bw_inst1 [get_cells [list sgd_top_bw_inst/inst_sgd_top_bw_slr1]]
 
 
-create_pblock pblock_sgd_top_bw_inst2
-resize_pblock pblock_sgd_top_bw_inst2 -add SLR2:SLR2
-add_cells_to_pblock pblock_sgd_top_bw_inst2 [get_cells [list sgd_top_bw_inst/inst_sgd_top_bw_slr2]]
+#create_pblock pblock_sgd_top_bw_inst2
+#resize_pblock pblock_sgd_top_bw_inst2 -add SLR2:SLR2
+#add_cells_to_pblock pblock_sgd_top_bw_inst2 [get_cells [list sgd_top_bw_inst/inst_sgd_top_bw_slr2]]
 
 
 
-create_pblock pblock_sgd_top_bw_inst0
-resize_pblock pblock_sgd_top_bw_inst0 -add SLR0:SLR0
+#create_pblock pblock_sgd_top_bw_inst0
+#resize_pblock pblock_sgd_top_bw_inst0 -add SLR0:SLR0
 
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list dma_driver_inst]]
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list xdma_app_i]]
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list dma_interface]]
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list inst_hbm_driver]]
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list inst_hbm_interface]]
-add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list u_hbm_send_back]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list dma_driver_inst]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list xdma_app_i]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list dma_interface]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list inst_hbm_driver]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list inst_hbm_interface]]
+#add_cells_to_pblock pblock_sgd_top_bw_inst0 [get_cells [list u_hbm_send_back]]

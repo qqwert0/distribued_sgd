@@ -18,7 +18,7 @@
 module  blockram_fifo #(
     parameter FIFO_WIDTH                = 64,
     parameter FIFO_DEPTH_BITS           = 9,
-    parameter FIFO_ALMOSTFULL_THRESHOLD = 2**FIFO_DEPTH_BITS - 8
+    parameter FIFO_ALMOSTFULL_THRESHOLD = 2**FIFO_DEPTH_BITS - 12
 ) (
     input  wire                         clk,
     input  wire                         reset_n,

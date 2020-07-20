@@ -19,7 +19,7 @@
 module  distram_fifo #(
     parameter FIFO_WIDTH                = 64,
     parameter FIFO_DEPTH_BITS           = 5,
-    parameter FIFO_ALMOSTFULL_THRESHOLD = 2**FIFO_DEPTH_BITS - 6
+    parameter FIFO_ALMOSTFULL_THRESHOLD = 2**FIFO_DEPTH_BITS - 12
 ) (
     input  wire                         clk,
     input  wire                         reset_n,
