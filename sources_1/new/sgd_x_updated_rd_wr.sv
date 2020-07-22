@@ -39,7 +39,9 @@ module sgd_x_updated_rd_wr #( parameter DATA_WIDTH_IN      = 4 ,
     ///////////////////wr part of x_updated//////////////////////
     output  reg                                    x_updated_wr_en,     
     output  reg            [`DIS_X_BIT_DEPTH-1:0]  x_updated_wr_addr,
-    output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_updated_wr_data
+    output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_updated_wr_data,
+    //-----------------debug------------------
+    output  reg [31:0]                             x_update_cnt
 );
 
 /////////////////Parameters/////////////////
@@ -152,6 +154,18 @@ begin: output_data
 //    assign x_updated_wr_data[(i+1)*32-1: i*32] = x_update_wr_data_signed_reg3[i];
 end
 endgenerate
+
+//----------------------------debug---------------------------
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            x_update_cnt                 <= 1'b0;
+        else if(x_updated_wr_en)
+            x_update_cnt                 <= x_update_cnt + 1'b1;
+        else 
+            x_update_cnt                 <= x_update_cnt;   
+    end
+
 
 
 endmodule

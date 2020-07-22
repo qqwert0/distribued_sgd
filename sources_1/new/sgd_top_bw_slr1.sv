@@ -101,7 +101,8 @@ module sgd_top_bw_slr1 #(
 	//data
 	output  reg[511:0]                              x_data_out,
 	output  reg                                     x_data_out_valid,
-	input   wire                                    x_data_out_almost_full
+	input   wire                                    x_data_out_almost_full,
+	output 	wire [255:0][31:0]                      sgd_status
 
 );
 /////debuginggggggggggggggggggggggggggg
@@ -602,7 +603,10 @@ end
 	.buffer_a_rd_data           (buffer_a_rd_data           ), 
 
 	.dot_product_signed_valid   (dot_product_signed_valid_slr1[i]   ),
-	.dot_product_signed         (dot_product_signed_slr1[i]         ) 
+	.dot_product_signed         (dot_product_signed_slr1[i]         ),
+	.a_data_cnt					(sgd_status[i*3]),
+    .dot_product_cnt			(sgd_status[i*3+1]),
+    .dot_product_state 			(sgd_status[i*3+2])
   );
 
 
@@ -634,7 +638,8 @@ end
 	.ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result_r4[i]      ), 
 
 	.acc_gradient_valid         (acc_gradient_valid),
-	.acc_gradient               (acc_gradient      )
+	.acc_gradient               (acc_gradient      ),
+	.gradient_cnt				(sgd_status[i+50])
   );
 
 
@@ -693,7 +698,8 @@ sgd_x_updated_rd_wr inst_x_updated_rd_wr(
 
 	.x_updated_wr_addr          (x_updated_wr_addr  ),
 	.x_updated_wr_data          (x_updated_wr_data  ),
-	.x_updated_wr_en            (x_updated_wr_en    )
+	.x_updated_wr_en            (x_updated_wr_en    ),
+	.x_update_cnt				(sgd_status[i+66])
 );
 
 
@@ -722,7 +728,8 @@ sgd_x_wr inst_x_wr (
 
 	.x_wr_addr                  (x_wr_addr          ),
 	.x_wr_data                  (x_wr_data          ),
-	.x_wr_en                    (x_wr_en            )
+	.x_wr_en                    (x_wr_en            ),
+	.x_cnt						(sgd_status[i+82])
 );
 
 
@@ -821,7 +828,11 @@ endgenerate
 	.dot_product_signed         (dot_product_signed_r1       ), 
 
 	.ax_minus_b_sign_shifted_result_valid (ax_minus_b_sign_shifted_result_valid),
-	.ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result      )
+	.ax_minus_b_sign_shifted_result       (ax_minus_b_sign_shifted_result      ),
+	//----------------debug--------------------
+	.b_data_cnt					(sgd_status[48]),        
+    .a_minus_b_cnt				(sgd_status[49])
+
   );
 
 
@@ -850,14 +861,17 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
 
 	//---------------------Memory Inferface:write----------------------------//
 	//cmd
-	.x_data_send_back_start(x_data_send_back_start),
-	.x_data_send_back_addr(x_data_send_back_addr),
-	.x_data_send_back_length(x_data_send_back_length),
+	.x_data_send_back_start		(x_data_send_back_start),
+	.x_data_send_back_addr		(x_data_send_back_addr),
+	.x_data_send_back_length	(x_data_send_back_length),
 
 	//data
-	.x_data_out(x_data_out),
-	.x_data_out_valid(x_data_out_valid),
-	.x_data_out_almost_full(x_data_out_almost_full)
+	.x_data_out					(x_data_out),
+	.x_data_out_valid			(x_data_out_valid),
+	.x_data_out_almost_full		(x_data_out_almost_full),
+	//----------------debug------------
+	.x_mem_cmd_cnt				(sgd_status[98]),
+    .x_mem_data_cnt				(sgd_status[99])
 
 );
 

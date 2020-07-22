@@ -40,7 +40,10 @@ set_property BITSTREAM.CONFIG.SPI_32BIT_ADDR Yes [current_design]
 
 set_false_path -from [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
 set_false_path -from [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]]
-
+set_false_path -from [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]] -to [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]]
+set_false_path -from [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins dma_interface/dma_driver_inst/dma_inst/inst/pcie4c_ip_i/inst/gt_top_i/diablo_gt.diablo_gt_phy_wrapper/phy_clk_i/bufg_gt_userclk/O]]
+set_false_path -from [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]]
+set_false_path -from [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
 set_false_path -from [get_ports sys_rst_n]
 #set_false_path -through [get_pins [list dma_driver_inst/pcie_aresetn inst_hbm_driver/hbm_rstn]]
 #set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]

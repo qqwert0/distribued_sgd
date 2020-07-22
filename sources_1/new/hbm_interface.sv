@@ -45,7 +45,7 @@ module hbm_interface(
     input wire [31:0]           channel_choice,
     input wire                      start,
 
-    output wire [63:0][31:0]    hbm_status,
+    output wire [127:0][31:0]    hbm_status,
     /* DMA INTERFACE */
     //Commands
     axis_mem_cmd.master         m_axis_dma_read_cmd,
@@ -362,7 +362,7 @@ module hbm_interface(
         .m_axi_ARUSER()  ,
         .m_axi_ARREADY(hbm_axi[i*2].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
-        .rd_addr_cnt()
+        .rd_addr_cnt(hbm_status[i*2+8][15:0])
 
         );
 
@@ -405,7 +405,7 @@ module hbm_interface(
         .m_axi_ARUSER()  ,
         .m_axi_ARREADY(hbm_axi[i*2+1].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
-        .rd_addr_cnt()
+        .rd_addr_cnt(hbm_status[i*2+9][15:0])
 
         );
 
@@ -443,9 +443,9 @@ module hbm_interface(
         .dispatch_axb_b_data(dispatch_axb_b_data[i*2]), 
         .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2]),
         //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
-        .wr_a_counter(),
- 	    .wr_b_counter(), 
- 	    .rd_sum_cnt()
+        .wr_a_counter(hbm_status[i*2+40][31:16]),
+ 	    .wr_b_counter(hbm_status[i*2+40][15:0]), 
+ 	    .rd_sum_cnt(hbm_status[i*2+8][31:16])
     );
     
     
@@ -481,9 +481,9 @@ module hbm_interface(
         .dispatch_axb_b_data(dispatch_axb_b_data[i*2+1]), 
         .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2+1]),
         //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
-        .wr_a_counter(),
- 	    .wr_b_counter(), 
- 	    .rd_sum_cnt()
+        .wr_a_counter(hbm_status[i*2+41][31:16]),
+ 	    .wr_b_counter(hbm_status[i*2+41][15:0]), 
+ 	    .rd_sum_cnt(hbm_status[i*2+9][31:16])
     );  
 
 
@@ -572,15 +572,15 @@ module hbm_interface(
 //	.probe3(hbm_read_a_wr_en_r[1]) // input wire [0:0]  probe3
 //);
 
-ila_4 ila_user (
-	.clk(user_clk), // input wire clk
+//ila_4 ila_user (
+//	.clk(user_clk), // input wire clk
 
 
-	.probe0(dispatch_axb_a_data[0]), // input wire [511:0]  probe0  
-	.probe1(dispatch_axb_a_wr_en[0]), // input wire [0:0]  probe1 
-	.probe2(hbm_read_a_rd_en[0]), // input wire [0:0]  probe2 
-	.probe3(dispatch_axb_a_almost_full_r1[0]) // input wire [0:0]  probe3
-);
+//	.probe0(dispatch_axb_a_data[0]), // input wire [511:0]  probe0  
+//	.probe1(dispatch_axb_a_wr_en[0]), // input wire [0:0]  probe1 
+//	.probe2(hbm_read_a_rd_en[0]), // input wire [0:0]  probe2 
+//	.probe3(dispatch_axb_a_almost_full_r1[0]) // input wire [0:0]  probe3
+//);
 
 
 

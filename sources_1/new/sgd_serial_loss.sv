@@ -39,7 +39,11 @@ module sgd_serial_loss (
     input wire        [`ENGINE_NUM-1:0][`NUM_OF_BANKS-1:0]        dot_product_signed_valid,  //
     //------------------Output: dot products for all the banks. ---------------//
     output reg signed                      [31:0] ax_minus_b_sign_shifted_result[`NUM_OF_BANKS-1:0],         //
-    output reg                                    ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0]
+    output reg                                    ax_minus_b_sign_shifted_result_valid[`NUM_OF_BANKS-1:0],
+    //----------------------debug------------------------
+    output reg [31:0]                               b_data_cnt,        
+    output reg [31:0]                               a_minus_b_cnt  
+
 );
 
 
@@ -258,6 +262,24 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
 end 
 endgenerate
 
+/////------------------debug---------------------------
 
+    always @(posedge clk)begin
+        if(~rst_n)
+            b_data_cnt                      <= 1'b0;
+        else if(dispatch_axb_b_wr_en)
+            b_data_cnt                      <= b_data_cnt + 1'b1;
+        else 
+            b_data_cnt                      <= b_data_cnt;   
+    end
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            a_minus_b_cnt                 <= 1'b0;
+        else if(ax_minus_b_sign_shifted_result_valid[0])
+            a_minus_b_cnt                 <= a_minus_b_cnt + 1'b1;
+        else 
+            a_minus_b_cnt                 <= a_minus_b_cnt;   
+    end   
 
 endmodule

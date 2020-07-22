@@ -651,30 +651,30 @@ module hbm_write#(
 /////////////debug ila////////////////////
 
 
-ila_hbm_write ila_hbm_write_inst (
-	.clk(hbm_clk), // input wire clk
+//ila_hbm_write ila_hbm_write_inst (
+//	.clk(hbm_clk), // input wire clk
 
 
-	.probe0(m_axi_AWVALID), // input wire [0:0]  probe0  
-	.probe1(m_axi_AWREADY), // input wire [0:0]  probe1 
-	.probe2(m_axi_AWADDR), // input wire [32:0]  probe2 
-	.probe3(m_axi_WVALID), // input wire [0:0]  probe3 
-	.probe4(m_axi_WREADY), // input wire [0:0]  probe4 
-	.probe5(m_axi_WLAST), // input wire [0:0]  probe5 
-	.probe6(m_axi_WDATA), // input wire [255:0]  probe6 
-	.probe7(dma2hbm_fifo_wr_en), // input wire [0:0]  probe7 
-   .probe8(dma2hbm_fifo_rd_en), // input wire [0:0]  probe8 
-	.probe9(wr_addr_cnt), // input wire [31:0]  probe9 
-	.probe10(wr_data_cnt), // input wire [31:0]  probe10     
-	.probe11(b_sample_cnt), // input wire [31:0]  probe11 
-	.probe12(a_feature_cnt), // input wire [31:0]  probe12 
-	.probe13(a_sample_cnt), // input wire [31:0]  probe13 
-	.probe14(a_bits_cnt), // input wire [7:0]  probe14 
-	.probe15(channel_num), // input wire [4:0]  probe15 
-	.probe16(cstate), // input wire [7:0]  probe16 
-	.probe17({dma2hbm_fifo_empty,3'b0,wcstate[3:0]}) // input wire [7:0]  probe17 
-//	.probe18(wr_sum_cnt) // input wire [31:0]  probe18
-);   
+//	.probe0(m_axi_AWVALID), // input wire [0:0]  probe0  
+//	.probe1(m_axi_AWREADY), // input wire [0:0]  probe1 
+//	.probe2(m_axi_AWADDR), // input wire [32:0]  probe2 
+//	.probe3(m_axi_WVALID), // input wire [0:0]  probe3 
+//	.probe4(m_axi_WREADY), // input wire [0:0]  probe4 
+//	.probe5(m_axi_WLAST), // input wire [0:0]  probe5 
+//	.probe6(m_axi_WDATA), // input wire [255:0]  probe6 
+//	.probe7(dma2hbm_fifo_wr_en), // input wire [0:0]  probe7 
+//   .probe8(dma2hbm_fifo_rd_en), // input wire [0:0]  probe8 
+//	.probe9(wr_addr_cnt), // input wire [31:0]  probe9 
+//	.probe10(wr_data_cnt), // input wire [31:0]  probe10     
+//	.probe11(b_sample_cnt), // input wire [31:0]  probe11 
+//	.probe12(a_feature_cnt), // input wire [31:0]  probe12 
+//	.probe13(a_sample_cnt), // input wire [31:0]  probe13 
+//	.probe14(a_bits_cnt), // input wire [7:0]  probe14 
+//	.probe15(channel_num), // input wire [4:0]  probe15 
+//	.probe16(cstate), // input wire [7:0]  probe16 
+//	.probe17({dma2hbm_fifo_empty,3'b0,wcstate[3:0]}) // input wire [7:0]  probe17 
+////	.probe18(wr_sum_cnt) // input wire [31:0]  probe18
+//);   
 
 
 //ila_hbm_write ila_hbm_write_inst (

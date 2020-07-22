@@ -51,8 +51,14 @@ module sgd_dot_product (
     output reg [`NUM_BITS_PER_BANK*`NUM_OF_BANKS-1:0] buffer_a_rd_data,
 
     //------------------Output: dot products for all the banks. ---------------//
-    output reg signed [`NUM_OF_BANKS-1:0][31:0] dot_product_signed,       //
-    output reg        [`NUM_OF_BANKS-1:0]       dot_product_signed_valid  //
+    output reg signed [`NUM_OF_BANKS-1:0][31:0]     dot_product_signed,       //
+    output reg        [`NUM_OF_BANKS-1:0]           dot_product_signed_valid,  //
+
+    //-------------------debug---------------
+    output reg [31:0]                               a_data_cnt,
+    output reg [31:0]                               dot_product_cnt,
+    output reg [31:0]                               dot_product_state
+   
 );
 
 reg       started_r, started_r2, started_r3;   //one cycle delay from started...
@@ -336,7 +342,7 @@ always@(posedge clk) begin
             //This state indicates that "b" is loaded from memory.....
             BANK_CHECK_X_STATE:
             begin
-                if (x_credit_available)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
+                if (1)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
                 begin
                     //if ( not_the_last_sample ) //sample_index != numSamples
                     x_rd_credit_counter   <= x_rd_credit_counter + 8'b1;
@@ -597,7 +603,46 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
 
 end 
 endgenerate
+///////////////////debug//////////
 
+    always @(posedge clk)begin
+        if(~rst_n)
+            a_data_cnt                      <= 1'b0;
+        else if(started_r2)
+            a_data_cnt                      <= 1'b0;
+        else if(dispatch_axb_a_wr_en)
+            a_data_cnt                      <= a_data_cnt + 1'b1;
+        else 
+            a_data_cnt                      <= a_data_cnt;   
+    end
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            dot_product_cnt                 <= 1'b0;
+        else if(started_r2)
+            dot_product_cnt                 <= 1'b0;
+        else if(dot_product_signed_valid)
+            dot_product_cnt                 <= dot_product_cnt + 1'b1;
+        else 
+            dot_product_cnt                 <= dot_product_cnt;   
+    end
+
+    always @(posedge clk)begin
+        dot_product_state                   <= state; 
+    end
+
+
+    ila_product inst_ila_product (
+        .clk(clk), // input wire clk
+    
+    
+        .probe0(state), // input wire [3:0]  probe0  
+        .probe1(epoch_index), // input wire [9:0]  probe1 
+        .probe2(numEpochs) // input wire [9:0]  probe2
+    );
+
+
+////////////////////simulation///
 
 `ifdef SIM
 

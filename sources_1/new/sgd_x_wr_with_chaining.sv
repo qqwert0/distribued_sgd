@@ -56,7 +56,8 @@ module sgd_x_wr #( parameter DATA_WIDTH_IN      = 4 ,
     ///////////////////wr part of x//////////////////////
     output  reg                                    x_wr_en,     
     output  reg                [`DIS_X_BIT_DEPTH-1:0]  x_wr_addr,
-    output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_wr_data
+    output  reg       [`NUM_BITS_PER_BANK*32-1:0]  x_wr_data,
+    output  reg [31:0]                              x_cnt
 
 );
 
@@ -339,5 +340,15 @@ end
 
 assign state_counters_x_wr = {x_updated_wr_en, state, sample_index[19:0], epoch_index[7:0]};
 
+//----------------debug-------------------
+
+    always @(posedge clk)begin
+        if(~rst_n)
+            x_cnt                       <= 1'b0;
+        else if(x_wr_en)
+            x_cnt                       <= x_cnt + 1'b1;
+        else 
+            x_cnt                       <= x_cnt;   
+    end
 
 endmodule

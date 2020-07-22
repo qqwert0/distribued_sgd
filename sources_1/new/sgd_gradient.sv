@@ -41,7 +41,9 @@ module sgd_gradient (
 
     //------------------Output: dot products for all the banks. ---------------//
     output reg signed                      [31:0] acc_gradient[`NUM_BITS_PER_BANK-1:0], //
-    output reg                                    acc_gradient_valid[`NUM_BITS_PER_BANK-1:0]   //
+    output reg                                    acc_gradient_valid[`NUM_BITS_PER_BANK-1:0],   //
+    //-------------------debug----------------------
+    output reg [31:0]                               gradient_cnt
 );
 
 reg               [11:0] main_counter, main_counter_wire;
@@ -324,6 +326,14 @@ for( i = 0; i < `NUM_BITS_PER_BANK; i = i + 1) begin: inst_adder_tree_bank
 end
 endgenerate
 
-
+//--------------------------------debug----------------------------
+    always @(posedge clk)begin
+        if(~rst_n)
+            gradient_cnt                 <= 1'b0;
+        else if(acc_gradient_valid[0])
+            gradient_cnt                 <= gradient_cnt + 1'b1;
+        else 
+            gradient_cnt                 <= gradient_cnt;   
+    end 
 
 endmodule

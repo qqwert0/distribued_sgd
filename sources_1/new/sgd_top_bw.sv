@@ -69,7 +69,9 @@ module sgd_top_bw #(
     //data
     output  reg[511:0]                              x_data_out,
     output  reg                                     x_data_out_valid,
-    input   wire                                    x_data_out_almost_full
+    input   wire                                    x_data_out_almost_full,
+    //----------------debug----------------
+    output wire [255:0][31:0]                       sgd_status
 
 );
 
@@ -370,7 +372,9 @@ sgd_top_bw_slr1 #(
     //data
     .x_data_out                                     (x_data_out_r1),
     .x_data_out_valid                               (x_data_out_valid_r1),
-    .x_data_out_almost_full                         (x_data_out_almost_full_r2)
+    .x_data_out_almost_full                         (x_data_out_almost_full_r2),
+    //---------------debug--------------------
+    .sgd_status                                     (sgd_status)
 
 );
 

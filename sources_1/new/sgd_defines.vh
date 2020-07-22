@@ -426,6 +426,6 @@ endinterface
 //`define SLR2
 //`endif
 
-`ifndef SIM
-`define SIM
-`endif
+//`ifndef SIM
+//`define SIM
+//`endif

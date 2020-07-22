@@ -61,7 +61,10 @@ module sgd_wr_x_to_memory #(
     //data
     output  reg[511:0]                              x_data_out,
     output  reg                                     x_data_out_valid,
-    input   wire                                    x_data_out_almost_full
+    input   wire                                    x_data_out_almost_full,
+     //-------------------debug-------------------------
+    output  reg [31:0]                              x_mem_cmd_cnt,
+    output  reg [31:0]                              x_mem_data_cnt
 
 );
 //From parameters from sgd_defines.svh:::
@@ -344,5 +347,22 @@ sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
 
     );
 
+    always @(posedge dma_clk)begin
+        if(~rst_n)
+            x_mem_cmd_cnt                 <= 1'b0;
+        else if(x_data_send_back_start)
+            x_mem_cmd_cnt                 <= x_mem_cmd_cnt + 1'b1;
+        else 
+            x_mem_cmd_cnt                 <= x_mem_cmd_cnt;   
+    end
+
+    always @(posedge dma_clk)begin
+        if(~rst_n)
+            x_mem_data_cnt                 <= 1'b0;
+        else if(x_data_out_valid)
+            x_mem_data_cnt                 <= x_mem_data_cnt + 1'b1;
+        else 
+            x_mem_data_cnt                 <= x_mem_data_cnt;   
+    end
 
 endmodule
