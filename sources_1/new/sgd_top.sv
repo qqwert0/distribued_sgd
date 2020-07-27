@@ -164,15 +164,33 @@ dma_inf dma_interface (
 
 axi_mm          hbm_axi[32]();
 wire            hbm_clk;
-wire            hbm_rstn;
+reg            hbm_rstn;
+wire            hbm_reset_n;
+reg             hbm_reset_in;
 
 hbm_driver inst_hbm_driver(
 
     .sys_clk_100M(hbm_clk_100M),
     .hbm_axi(hbm_axi),
     .hbm_clk(hbm_clk),
-    .hbm_rstn(hbm_rstn)
+    .hbm_rstn(hbm_reset_n)
     );
+
+
+always @(posedge hbm_clk)begin
+    if(hbm_reset_n & (~fpga_control_reg[0][0]))
+        hbm_rstn                <= 1'b1;
+    else
+        hbm_rstn                <= 1'b0;
+end
+
+
+//BUFG u_reset  (
+//  .I (hbm_reset_in),
+//  .O (hbm_rstn)
+//);
+
+
 
 wire								start_um;
 wire [63:0]                  		addr_model;
@@ -193,6 +211,7 @@ wire  [`ENGINE_NUM-1:0][511:0]     	dispatch_axb_a_data;
 wire [255:0]                      	dispatch_axb_b_data; 
 wire  [`ENGINE_NUM-1:0]            	dispatch_axb_a_wr_en;
 wire                            	dispatch_axb_b_wr_en;
+wire                                dispatch_axb_b_almost_full;
 wire [`ENGINE_NUM-1:0]            	dispatch_axb_a_almost_full;
 
 //---------------------Memory Inferface:write----------------------------//
@@ -211,7 +230,7 @@ hbm_interface inst_hbm_interface(
     // .user_clk(user_clk),
     // .user_aresetn(user_aresetn),
     .user_clk(user_clk),
-    .user_aresetn(user_aresetn),
+    .user_aresetn(hbm_rstn),
 
     .hbm_clk(hbm_clk),
     .hbm_rstn(hbm_rstn),
@@ -258,7 +277,7 @@ hbm_interface inst_hbm_interface(
 
     .dispatch_axb_b_data_o              (dispatch_axb_b_data),
     .dispatch_axb_b_wr_en_o             (dispatch_axb_b_wr_en),
-    .dispatch_axb_b_almost_full         ()
+    .dispatch_axb_b_almost_full         (dispatch_axb_b_almost_full)
 
     );
 
@@ -267,80 +286,80 @@ hbm_interface inst_hbm_interface(
 
 
 // SGD 
-sgd_top_bw #( 
-    .DATA_WIDTH_IN               (4),
-    .MAX_DIMENSION_BITS          (18),
-    .SLR0_ENGINE_NUM                                (0),
-    .SLR1_ENGINE_NUM                                (1),
-    .SLR2_ENGINE_NUM                                (0)
+ sgd_top_bw #( 
+     .DATA_WIDTH_IN               (4),
+     .MAX_DIMENSION_BITS          (18),
+     .SLR0_ENGINE_NUM                                (0),
+     .SLR1_ENGINE_NUM                                (1),
+     .SLR2_ENGINE_NUM                                (0)
 
-)sgd_top_bw_inst (    
-    .clk                                (user_clk),
-    .rst_n                              (hbm_rstn),
-    .dma_clk                            (pcie_clk),
-    .hbm_clk                            (hbm_clk),
-    //-------------------------------------------------//
-    .start_um                           (start_sgd),
-    // .um_params                          (m_axis_mlweaving_data),
+ )sgd_top_bw_inst (    
+     .clk                                (user_clk),
+     .rst_n                              (hbm_rstn),
+     .dma_clk                            (pcie_clk),
+     .hbm_clk                            (hbm_clk),
+     //-------------------------------------------------//
+     .start_um                           (start_sgd),
+     // .um_params                          (m_axis_mlweaving_data),
 
-    .addr_model                         ({fpga_control_reg[25],fpga_control_reg[24]}),
-    .mini_batch_size                    (fpga_control_reg[26]),
-    .step_size                          (fpga_control_reg[27]),
-    .number_of_epochs                   (fpga_control_reg[28]),
-    .dimension                          (fpga_control_reg[29]),
-    .number_of_samples                  (fpga_control_reg[30]),
-    .number_of_bits                     (fpga_control_reg[31]),
+     .addr_model                         ({fpga_control_reg[25],fpga_control_reg[24]}),
+     .mini_batch_size                    (fpga_control_reg[26]),
+     .step_size                          (fpga_control_reg[27]),
+     .number_of_epochs                   (fpga_control_reg[28]),
+     .dimension                          (fpga_control_reg[29]),
+     .number_of_samples                  (fpga_control_reg[30]),
+     .number_of_bits                     (fpga_control_reg[31]),
 
-    .um_done                            (),
-    .um_state_counters                  (),
-
-
-    .dispatch_axb_a_data                (dispatch_axb_a_data),
-    .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
-    .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
-
-    .dispatch_axb_b_data                (dispatch_axb_b_data),
-    .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en),
-    .dispatch_axb_b_almost_full         (),
-    //---------------------Memory Inferface:write----------------------------//
-    //cmd
-    .x_data_send_back_start             (x_data_send_back_start),
-    .x_data_send_back_addr              (x_data_send_back_addr),
-    .x_data_send_back_length            (x_data_send_back_length),
-
-    //data
-    .x_data_out                         (x_data_out),
-    .x_data_out_valid                   (x_data_out_valid),
-    .x_data_out_almost_full             (x_data_out_almost_full),
-
-    //-------debug----------
-    .sgd_status                         (fpga_status_reg[448:192])
-
-);
+     .um_done                            (),
+     .um_state_counters                  (),
 
 
-   hbm_send_back  u_hbm_send_back (
-       .hbm_clk                                            ( pcie_clk                                            ),
-       .hbm_aresetn                                        ( hbm_rstn                                           ),
-       .m_axis_dma_write_cmd                               ( axis_dma_write_cmd                                ),
-       .m_axis_dma_write_data                              ( axis_dma_write_data                               ),
-       .start                                              ( x_data_send_back_start                              ),
-       .addr_x                                             ( x_data_send_back_addr                               ),
-       .data_length                                        ( x_data_send_back_length                             ),
-       .back_data                                          ( x_data_out                                           ),
-       .back_valid                                         ( x_data_out_valid                                          ),
+     .dispatch_axb_a_data                (dispatch_axb_a_data),
+     .dispatch_axb_a_wr_en               (dispatch_axb_a_wr_en),
+     .dispatch_axb_a_almost_full         (dispatch_axb_a_almost_full),
 
-       .almost_full                                        ( x_data_out_almost_full                                         )
-   );
+     .dispatch_axb_b_data                (dispatch_axb_b_data),
+     .dispatch_axb_b_wr_en               (dispatch_axb_b_wr_en),
+     .dispatch_axb_b_almost_full         (dispatch_axb_b_almost_full),
+     //---------------------Memory Inferface:write----------------------------//
+     //cmd
+     .x_data_send_back_start             (x_data_send_back_start),
+     .x_data_send_back_addr              (x_data_send_back_addr),
+     .x_data_send_back_length            (x_data_send_back_length),
 
-//     reg [511:0]                     back_data;
-//     reg                             back_valid;
-//     reg [7:0]                       channel_choice_r;
+     //data
+     .x_data_out                         (x_data_out),
+     .x_data_out_valid                   (x_data_out_valid),
+     .x_data_out_almost_full             (x_data_out_almost_full),
+
+     //-------debug----------
+     .sgd_status                         (fpga_status_reg[448:192])
+
+ );
+
+
+    hbm_send_back  u_hbm_send_back (
+        .hbm_clk                                            ( pcie_clk                                            ),
+        .hbm_aresetn                                        ( hbm_rstn                                           ),
+        .m_axis_dma_write_cmd                               ( axis_dma_write_cmd                                ),
+        .m_axis_dma_write_data                              ( axis_dma_write_data                               ),
+        .start                                              ( x_data_send_back_start                              ),
+        .addr_x                                             ( x_data_send_back_addr                               ),
+        .data_length                                        ( x_data_send_back_length                             ),
+        .back_data                                          ( x_data_out                                           ),
+        .back_valid                                         ( x_data_out_valid                                          ),
+
+        .almost_full                                        ( x_data_out_almost_full                                         )
+    );
+
+//    reg [511:0]                     back_data;
+//    reg                             back_valid;
+//    reg [7:0]                       channel_choice_r;
 
 
 
 
-// assign dispatch_axb_a_almost_full = {`ENGINE_NUM{x_data_out_almost_full}};
+//assign dispatch_axb_a_almost_full = {`ENGINE_NUM{x_data_out_almost_full}};
 
 
 always @(posedge hbm_clk)begin
@@ -374,47 +393,57 @@ always @(posedge user_clk)begin
         start_sgd             <= 1'b0;
 end
 
-//     always @(posedge pcie_clk)begin
-//         channel_choice_r            <= fpga_control_reg[34][7:0];
-//     end
 
-//     always @(posedge pcie_clk)begin
-//             back_data               <= dispatch_axb_a_data[channel_choice_r[6:0]];
-//             back_valid              <= dispatch_axb_a_wr_en[channel_choice_r[6:0]];
-//     end
+//ila_start probe_ila_start(
+//.clk(hbm_clk),
+
+//.probe0(start_um), // input wire [1:0]
+//.probe1(start_d), // input wire [1:0]
+//.probe2(start_cnt), // input wire [8:0]
+//.probe3(start_sgd) // input wire [1:0]
+//);
+
+//    always @(posedge pcie_clk)begin
+//        channel_choice_r            <= fpga_control_reg[34][7:0];
+//    end
+
+//    always @(posedge pcie_clk)begin
+//            back_data               <= dispatch_axb_a_data[channel_choice_r[6:0]];
+//            back_valid              <= dispatch_axb_a_wr_en[channel_choice_r[6:0]];
+//    end
 
 
-//    hbm_send_back  u_hbm_send_back (
-//        .hbm_clk                                            ( pcie_clk                                            ),
-//        .hbm_aresetn                                        ( pcie_aresetn                                           ),
-//        .m_axis_dma_write_cmd                               ( axis_dma_write_cmd                                ),
-//        .m_axis_dma_write_data                              ( axis_dma_write_data                               ),
-//        .start                                              ( start_send_back                              ),
-//        .addr_x                                             ( {fpga_control_reg[25],fpga_control_reg[24]}                               ),
-//        .data_length                                        ( fpga_control_reg[32]                             ),
-//        .back_data                                          ( back_data                                           ),
-//        .back_valid                                         ( back_valid                                          ),
+//   hbm_send_back  u_hbm_send_back (
+//       .hbm_clk                                            ( pcie_clk                                            ),
+//       .hbm_aresetn                                        ( pcie_aresetn                                           ),
+//       .m_axis_dma_write_cmd                               ( axis_dma_write_cmd                                ),
+//       .m_axis_dma_write_data                              ( axis_dma_write_data                               ),
+//       .start                                              ( start_sgd                              ),
+//       .addr_x                                             ( {fpga_control_reg[25],fpga_control_reg[24]}                               ),
+//       .data_length                                        ( fpga_control_reg[32]                             ),
+//       .back_data                                          ( back_data                                           ),
+//       .back_valid                                         ( back_valid                                          ),
 
-//        .almost_full                                        ( x_data_out_almost_full                                         )
-//    );
+//       .almost_full                                        ( x_data_out_almost_full                                         )
+//   );
 
 
 
 //////////////////hbm debug/////////////////
 
 
-//ila_0 ila_write_inst (
-//	.clk(pcie_clk), // input wire clk
+ila_0 ila_write_inst (
+	.clk(pcie_clk), // input wire clk
 
 
-//	.probe0(axis_dma_write_cmd.valid), // input wire [0:0]  probe0  
-//	.probe1(axis_dma_write_cmd.ready), // input wire [0:0]  probe1 
-//	.probe2(axis_dma_write_cmd.address), // input wire [63:0]  probe2 
-//	.probe3(axis_dma_write_cmd.length), // input wire [31:0]  probe3 
-//	.probe4(axis_dma_write_data.valid), // input wire [0:0]  probe4 
-//	.probe5(axis_dma_write_data.ready), // input wire [0:0]  probe5 
-//	.probe6(axis_dma_write_data.data) // input wire [511:0]  probe6
-//); 
+	.probe0(axis_dma_write_cmd.valid), // input wire [0:0]  probe0  
+	.probe1(axis_dma_write_cmd.ready), // input wire [0:0]  probe1 
+	.probe2(axis_dma_write_cmd.address), // input wire [63:0]  probe2 
+	.probe3(axis_dma_write_cmd.length), // input wire [31:0]  probe3 
+	.probe4(axis_dma_write_data.valid), // input wire [0:0]  probe4 
+	.probe5(axis_dma_write_data.ready), // input wire [0:0]  probe5 
+	.probe6(axis_dma_write_data.data) // input wire [511:0]  probe6
+); 
 
 //ila_0 ila_read_inst (
 //	.clk(pcie_clk), // input wire clk

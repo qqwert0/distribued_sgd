@@ -199,6 +199,7 @@ module hbm_interface(
     //MLWEAVING PARAMETER REG
     reg [31:0]                  data_b_length;
     wire                        hbm_write_done;
+    reg                         hbm_write_done_r,hbm_write_done_rr;
     reg [4:0]                   b_data_channel;
 
 
@@ -362,7 +363,7 @@ module hbm_interface(
         .m_axi_ARUSER()  ,
         .m_axi_ARREADY(hbm_axi[i*2].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
-        .rd_addr_cnt(hbm_status[i*2+8][15:0])
+        .rd_addr_cnt(hbm_status[i*2+8])
 
         );
 
@@ -405,7 +406,7 @@ module hbm_interface(
         .m_axi_ARUSER()  ,
         .m_axi_ARREADY(hbm_axi[i*2+1].arready),  //rd ready to accept address.
         .rd_sum_cnt(),
-        .rd_addr_cnt(hbm_status[i*2+9][15:0])
+        .rd_addr_cnt(hbm_status[i*2+9])
 
         );
 
@@ -443,9 +444,9 @@ module hbm_interface(
         .dispatch_axb_b_data(dispatch_axb_b_data[i*2]), 
         .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2]),
         //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
-        .wr_a_counter(hbm_status[i*2+40][31:16]),
- 	    .wr_b_counter(hbm_status[i*2+40][15:0]), 
- 	    .rd_sum_cnt(hbm_status[i*2+8][31:16])
+        .wr_a_counter(hbm_status[i*2+40]),
+ 	    .wr_b_counter(), 
+ 	    .rd_sum_cnt()
     );
     
     
@@ -481,9 +482,9 @@ module hbm_interface(
         .dispatch_axb_b_data(dispatch_axb_b_data[i*2+1]), 
         .dispatch_axb_b_wr_en(dispatch_axb_b_wr_en[i*2+1]),
         //input   wire                                     dispatch_axb_b_almost_full[`NUM_OF_BANKS-1:0],
-        .wr_a_counter(hbm_status[i*2+41][31:16]),
- 	    .wr_b_counter(hbm_status[i*2+41][15:0]), 
- 	    .rd_sum_cnt(hbm_status[i*2+9][31:16])
+        .wr_a_counter(hbm_status[i*2+41]),
+ 	    .wr_b_counter(), 
+ 	    .rd_sum_cnt()
     );  
 
 
@@ -592,7 +593,9 @@ module hbm_interface(
     end
 
     always @(posedge hbm_clk) begin
-        start_um                        <= hbm_write_done;
+        start_um                        <= hbm_write_done | hbm_write_done_r | hbm_write_done_rr;
+        hbm_write_done_r                <= hbm_write_done;
+        hbm_write_done_rr               <= hbm_write_done_r;
     end 
 
     //  always @(posedge user_clk) begin

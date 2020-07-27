@@ -66,7 +66,8 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     reg [31:0]                              dimension_index,dimension_index_r,dimension_minus;  
     reg [31:0]                              epoch_index;
     reg [8:0]                               rd_en_r;
-    wire                                    rd_en;
+    wire                                    rd_en; 
+    reg [3:0]                               wait_cnt;           
 
     reg[511:0]                              x_data_out_pre1,x_data_out_pre2,x_data_out_pre3;
     reg                                     x_data_out_valid_pre1,x_data_out_valid_pre2,x_data_out_valid_pre3;
@@ -101,7 +102,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     end
 
     always @(posedge clk) begin
-        x_data_send_back_length             <= dimension << 5;
+        x_data_send_back_length             <= dimension << 2;
     end
 
 
@@ -169,12 +170,13 @@ endgenerate
 
     
 
-    localparam [3:0]    IDLE            = 4'b0001,
+    localparam [4:0]    IDLE            = 4'b0001,
                         WRITE_MEM_EPOCH = 4'b0010,
                         WRITE_MEM_DATA  = 4'b0100,
-                        WRITE_MEM_END   = 4'b1000;
+                        WRITE_MEM_END   = 4'b1000,
+                        WAIT            = 5'b10000;
 
-    reg [3:0]                           cstate,nstate;                    
+    reg [4:0]                           cstate,nstate;                    
 
     assign rd_en                        = ~x_data_out_almost_full_r1 & cstate[2];
 
@@ -213,12 +215,18 @@ endgenerate
                         if(engine_index >= `ENGINE_NUM-1)begin
                             nstate              = WRITE_MEM_DATA;
                             if(dimension_index >= dimension_minus)begin
-                                nstate          = WRITE_MEM_EPOCH;
+                                nstate          = WAIT;
                             end
                         end
                     end
                 end
             end
+            WAIT:begin
+                if(wait_cnt[3])
+                    nstate                          = WRITE_MEM_EPOCH;
+                else
+                    nstate                              = WAIT;
+            end            
             WRITE_MEM_END:begin
                 nstate                          = IDLE;
             end
@@ -234,13 +242,14 @@ endgenerate
                 epoch_index                     <= 32'b0;
 
                 x_data_send_back_start          <= 1'b0;
-                x_data_send_back_addr           <= addr_model;
+                x_data_send_back_addr           <= addr_model - x_data_send_back_length;
 
             end
             WRITE_MEM_EPOCH:begin
                 if(epoch_index == numEpochs)begin
                 end
                 if(~x_to_mem_empty[0])begin
+                    wait_cnt                    <= 1'b0;
                     epoch_index                 <= epoch_index + 1'b1;
                     x_data_send_back_start      <= 1'b1;
                     x_data_send_back_addr       <= x_data_send_back_addr + x_data_send_back_length;
@@ -249,6 +258,7 @@ endgenerate
                 end
             end
             WRITE_MEM_DATA:begin
+                x_data_send_back_start          <= 1'b0;
                 if(rd_en) begin
                     inner_index         <= inner_index + 1 ;
                     if(inner_index == 2'b11) begin
@@ -263,11 +273,21 @@ endgenerate
                     end
                 end
             end
+            WAIT:begin
+                wait_cnt                        <= wait_cnt + 1'b1;
+            end
             WRITE_MEM_END:begin
             end
         endcase
     end
 
+ila_x_to_mem probe_ila_x_to_mem(
+.clk(clk),
 
+.probe0(x_data_out_valid), // input wire [1:0]
+.probe1(x_data_out), // input wire [512:0]
+.probe2(cstate), // input wire [5:0]
+.probe3(x_to_mem_empty[0]) // input wire [1:0]
+);
 
 endmodule

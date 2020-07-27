@@ -342,7 +342,7 @@ always@(posedge clk) begin
             //This state indicates that "b" is loaded from memory.....
             BANK_CHECK_X_STATE:
             begin
-                if (1)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
+                if (x_credit_available)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
                 begin
                     //if ( not_the_last_sample ) //sample_index != numSamples
                     x_rd_credit_counter   <= x_rd_credit_counter + 8'b1;
@@ -632,16 +632,6 @@ endgenerate
     end
 
 
-    ila_product inst_ila_product (
-        .clk(clk), // input wire clk
-    
-    
-        .probe0(state), // input wire [3:0]  probe0  
-        .probe1(epoch_index), // input wire [9:0]  probe1 
-        .probe2(numEpochs) // input wire [9:0]  probe2
-    );
-
-
 ////////////////////simulation///
 
 `ifdef SIM
@@ -668,6 +658,13 @@ end
 
 `endif
 
+//ila_dot_product probe_ila_dot_product(
+//.clk(clk),
 
+//.probe0(dot_product_signed_valid[0]), // input wire [1:0]
+//.probe1({dot_product_signed[7],dot_product_signed[6],dot_product_signed[5],dot_product_signed[4],dot_product_signed[3],dot_product_signed[2],dot_product_signed[1],dot_product_signed[0]}), // input wire [512:0]
+//.probe2(sample_index), // input wire [32:0]
+//.probe3(main_index) // input wire [12:0]
+//);
 
 endmodule

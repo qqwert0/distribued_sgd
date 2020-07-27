@@ -81,7 +81,7 @@ module tb_sgd_bw_top(
 
     initial begin
         // $readmemh("/home/amax/hhj/distributed_sgd/a_ups.txt",a,0,1866496);
-        $readmemh("/home/amax/hhj/distributed_sgd/c_seq.txt",a,0,29056);
+        $readmemh("/home/amax/hhj/distributed_sgd/c.txt",a,0,29056);
         $readmemh("/home/amax/hhj/distributed_sgd/b_ups.txt",b,0,7291);
         clk = 1'b1;
         rst_n = 1'b0;
@@ -163,6 +163,10 @@ begin
     always @(posedge clk)begin
         if(~rst_n)
             a_addr                      <= 0;
+        else if(dispatch_axb_a_wr_en[i] & a_addr==29056)
+            a_addr                      <= 1'b1;
+        else if(a_addr==29056)
+            a_addr                      <= 1'b0;                    
         else if(dispatch_axb_a_wr_en[i])
             a_addr                      <= a_addr + 1'b1;
         else begin
@@ -182,6 +186,10 @@ endgenerate
     always @(posedge clk)begin
         if(~rst_n)
             b_cnt     <= 0;
+        else if(b_cnt == 908 & dispatch_axb_b_almost_full)
+            b_cnt     <= 0;
+        else if(b_cnt == 908)
+            b_cnt     <= 1;
         else if(~dispatch_axb_b_almost_full)
             b_cnt     <= b_cnt + 1;
         else
@@ -191,7 +199,7 @@ endgenerate
     always @(posedge clk)begin
         if(~rst_n)
             dispatch_axb_b_wr_en     <= 0;
-        else if(b_cnt >= (number_of_samples>>3))
+        else if(b_cnt >= (number_of_samples>>2))
             dispatch_axb_b_wr_en     <= 0;
         else if(~dispatch_axb_b_almost_full)
             dispatch_axb_b_wr_en     <= 1;

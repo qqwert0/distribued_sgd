@@ -78,12 +78,12 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
     reg                                     writing_x_to_host_memory_en_r,writing_x_to_host_memory_en_r2,writing_x_to_host_memory_en_r3,writing_x_to_host_memory_en_r4;
     reg [1:0]                               inner_index;
-    (* keep = "true" , max_fanout = 200 *)reg [8:0][1:0]                          inner_index_r;
+    (* keep = "true" , max_fanout = 200 *)reg [10:0][1:0]                          inner_index_r;
     reg [3:0]                               engine_index;
-    reg [8:0][3:0]                          engine_index_r;
+    reg [10:0][3:0]                          engine_index_r;
     reg [31:0]                              dimension_index,dimension_index_r,dimension_minus;  
     reg [31:0]                              epoch_index;
-    reg [8:0]                               rd_en_r;
+    reg [10:0]                               rd_en_r;
     wire                                    rd_en;
 
     reg                                     x_data_out_almost_full_r1,x_data_out_almost_full_r2,x_data_out_almost_full_r3;
@@ -111,10 +111,10 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
     end
 
     always @(posedge clk) begin
-        inner_index_r                       <= {inner_index_r[7:0],inner_index};
-        engine_index_r                      <= {engine_index_r[7:0],engine_index};
+        inner_index_r                       <= {inner_index_r[9:0],inner_index};
+        engine_index_r                      <= {engine_index_r[9:0],engine_index};
         dimension_index_r                   <= dimension_index;
-        rd_en_r                             <= {rd_en_r[7:0],rd_en};
+        rd_en_r                             <= {rd_en_r[9:0],rd_en};
     end
 
 
@@ -210,6 +210,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
 
             end
             WRITE_MEM_EPOCH:begin
+                writing_x_to_host_memory_done   <= 1'b0;
                 if(epoch_index == numEpochs)begin
                 end
                 if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
@@ -230,13 +231,14 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                             if(dimension_index >= dimension_minus)begin
                                 dimension_index <= 0;
                                 x_mem_rd_addr   <= 0;
+                                writing_x_to_host_memory_done   <= 1'b1;
                             end
                         end
                     end
                 end
             end
             WRITE_MEM_END:begin
-                writing_x_to_host_memory_done   <= 1'b1;
+                
             end
         endcase
     end
@@ -256,7 +258,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
         if(~rst_n) begin
             x_to_mem_wr_en_pre[i]                   <= 0;                    
         end
-        else if(rd_en_r[7] && (engine_index_r[7] == i))begin
+        else if(rd_en_r[10] && (engine_index_r[10] == i))begin
             x_to_mem_wr_en_pre[i]           <= 1'b1;
         end
         else begin
@@ -269,7 +271,7 @@ for(i = 0; i < `ENGINE_NUM; i++) begin
             x_to_mem_wr_data_pre[i]                 <= 0;                  
         end
         else begin
-            case(inner_index_r[7])
+            case(inner_index_r[10])
                 2'b00:begin
                     x_to_mem_wr_data_pre[i]         <= x_mem_rd_data[i][511:0];
                 end
@@ -324,7 +326,7 @@ sgd_x_to_memory_read_data inst_sgd_x_to_memory_read_data(
     .clk                        (dma_clk),
     .rst_n                      (rst_n),
     //--------------------------Begin/Stop-----------------------------//
-    .started                    (1),
+    .started                    (started_r3),
     //---------Input: Parameters (where, how many) from the root module-------//
     .addr_model                 (addr_model),
     .dimension                  (dimension),

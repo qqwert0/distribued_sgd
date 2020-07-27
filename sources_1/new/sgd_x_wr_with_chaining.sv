@@ -351,4 +351,15 @@ assign state_counters_x_wr = {x_updated_wr_en, state, sample_index[19:0], epoch_
             x_cnt                       <= x_cnt;   
     end
 
+
+//ila_x probe_ila_x(
+//.clk(clk),
+
+//.probe0(x_wr_en), // input wire [1:0]
+//.probe1(x_wr_addr), // input wire [10:0]
+//.probe2(x_wr_data), // input wire [2048:0]
+//.probe3(x_cnt) // input wire [32:0]
+//);
+
+
 endmodule

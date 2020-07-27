@@ -45,9 +45,12 @@ set_false_path -from [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CL
 set_false_path -from [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]]
 set_false_path -from [get_clocks -of_objects [get_pins user_clk_inst/u_mmcm_0/CLKOUT0]] -to [get_clocks -of_objects [get_pins inst_hbm_driver/u_mmcm_0/CLKOUT0]]
 set_false_path -from [get_ports sys_rst_n]
+
+set_false_path -from [get_cells hbm_rstn_reg]
+set_false_path -from [get_cells dma_interface/controller_inst/fpga_control_reg_reg[*]]
 #set_false_path -through [get_pins [list dma_driver_inst/pcie_aresetn inst_hbm_driver/hbm_rstn]]
 #set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]
-set_false_path -from [get_cells inst_hbm_interface/start_um_reg]
+set_false_path -from [get_cells start_sgd_reg]
 
 #set_false_path -from [get_cells inst_hbm_driver/hbm_rstn_reg]
 #set_false_path -from [get_cells sgd_top_bw_inst/inst_sgd_top_bw_slr1/rst_n_reg_reg]

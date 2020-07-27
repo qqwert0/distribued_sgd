@@ -264,7 +264,7 @@ endgenerate
 
 /////------------------debug---------------------------
 
-    always @(posedge clk)begin
+    always @(posedge hbm_clk)begin
         if(~rst_n)
             b_data_cnt                      <= 1'b0;
         else if(dispatch_axb_b_wr_en)
@@ -281,5 +281,16 @@ endgenerate
         else 
             a_minus_b_cnt                 <= a_minus_b_cnt;   
     end   
+
+
+//ila_serial probe_ila_serial(
+//.clk(hbm_clk),
+
+//.probe0(dispatch_axb_b_wr_en), // input wire [1:0]
+//.probe1(dispatch_axb_b_data), // input wire [256:0]
+//.probe2(b_data_cnt) // input wire [32:0]
+//);
+
+
 
 endmodule
