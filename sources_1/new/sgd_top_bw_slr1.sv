@@ -120,7 +120,7 @@ end
 
 
 
-reg        started, done;
+reg        started;
 wire       mem_op_done;
 wire [`ENGINE_NUM-1:0] sgd_execution_done;
 wire [31:0] num_issued_mem_rd_reqs;
@@ -141,14 +141,6 @@ end
 //reg [63:0] num_issued_mem_rd_reqs;
 reg [31:0] num_received_rds;
 reg [63:0] num_cycles;
-
-
-
-
-assign um_done = done;
-
-
-
 
 
 
@@ -856,6 +848,8 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
 	.writing_x_to_host_memory_en   (writing_x_to_host_memory_en_r2  ),
 	.writing_x_to_host_memory_done (writing_x_to_host_memory_done),
 
+	.um_done                    (um_done),
+
 	.x_mem_rd_addr              (x_mem_rd_addr      ),
 	.x_mem_rd_data              (x_mem_rd_data      ),
 
@@ -882,6 +876,43 @@ sgd_wr_x_to_memory inst_wr_x_to_memory (
 
 
 ////////////Debug output....////////////
+reg [31:0]      sgd_sum;
+reg 			sum_en;	
+reg 			done;			
+
+
+always @(posedge clk)begin
+    if(~rst_n)
+		done                 	<= 1'b0;
+	else if(um_done)	
+		done					<= 1'b1;
+	else 
+		done					<= done;
+end
+
+always @(posedge clk)begin
+    if(~rst_n)
+		sum_en                 	<= 1'b0;
+	else if(started)  	
+		sum_en					<= 1'b1;
+	else if(um_done)	
+		sum_en					<= 1'b0;
+	else 
+		sum_en					<= sum_en;
+end
+
+always @(posedge clk)begin
+    if(~rst_n)
+        sgd_sum                 <= 32'b0;
+	else if(sum_en)
+		sgd_sum  				<= sgd_sum + 1'b1;
+	else 
+		sgd_sum					<= sgd_sum;
+end
+
+
+	assign	sgd_status[108]				= done;
+	assign  sgd_status[109]				= sgd_sum;
 
 //um_state_counters[255:0]
 always @(posedge clk) 

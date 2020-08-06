@@ -48,6 +48,8 @@ module sgd_wr_x_to_memory #(
     input                                          writing_x_to_host_memory_en,
     output  reg                                    writing_x_to_host_memory_done,
 
+    output  reg                                     um_done,
+
     ///////////////////rd part of x_updated//////////////////////
     output  reg                [`DIS_X_BIT_DEPTH-1:0]  x_mem_rd_addr,
     input   [`ENGINE_NUM-1:0][`NUM_BITS_PER_BANK*32-1:0]  x_mem_rd_data,
@@ -205,13 +207,14 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 dimension_index                 <= 32'b0;
                 epoch_index                     <= 32'b0;
                 writing_x_to_host_memory_done   <= 1'b0;
-
+                um_done                         <= 0;
                 x_mem_rd_addr                   <= 0;
 
             end
             WRITE_MEM_EPOCH:begin
                 writing_x_to_host_memory_done   <= 1'b0;
                 if(epoch_index == numEpochs)begin
+                    um_done                         <= 1'b1;
                 end
                 if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     epoch_index                 <= epoch_index + 1'b1;
@@ -238,7 +241,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 end
             end
             WRITE_MEM_END:begin
-                
+                um_done                         <= 1'b1;
             end
         endcase
     end
