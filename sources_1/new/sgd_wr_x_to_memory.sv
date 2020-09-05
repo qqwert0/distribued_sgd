@@ -172,7 +172,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 if(epoch_index == numEpochs)begin
                     nstate              = WRITE_MEM_END;
                 end
-                if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
+                else if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     nstate              = WRITE_MEM_DATA;
                 end
                 else begin
@@ -216,7 +216,7 @@ reg [3:0] error_state; //0000: ok; 0001: dimension is zero;
                 if(epoch_index == numEpochs)begin
                     um_done                         <= 1'b1;
                 end
-                if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
+                else if((~writing_x_to_host_memory_en_r4) & writing_x_to_host_memory_en_r3)begin
                     epoch_index                 <= epoch_index + 1'b1;
                 end
                 else begin

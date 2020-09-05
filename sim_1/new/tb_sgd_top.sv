@@ -18,7 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "sgd_defines.vh"
 
 module tb_sgd_bw_top(
 
@@ -72,9 +72,9 @@ module tb_sgd_bw_top(
             addr_model       <= 32'h40000000;
             mini_batch_size  <= 16;
             step_size        <= 16;
-            number_of_epochs <= 3;
-            dimension        <= 256;    
-            number_of_samples<= 7264;
+            number_of_epochs <= 4;
+            dimension        <= 4992;    
+            number_of_samples<= 352;
             number_of_bits   <= 8;    
     end
 
@@ -150,8 +150,8 @@ begin
     always @(posedge clk)begin
         if(~rst_n)
             dispatch_axb_a_wr_en[i]     <= 0;
-        else if(a_sample_cnt >= number_of_samples)
-            dispatch_axb_a_wr_en[i]     <= 0;
+//        else if(a_sample_cnt >= number_of_samples)
+//            dispatch_axb_a_wr_en[i]     <= 0;
         else if(~dispatch_axb_a_almost_full[i])
             dispatch_axb_a_wr_en[i]     <= 1;
         else

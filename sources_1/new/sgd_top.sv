@@ -56,8 +56,8 @@ wire user_aresetn;
 mmcm_clk #(
     //clk_out_freq = clk_in_freq * MMCM_CLKFBOUT_MULT_F / (MMCM_DIVCLK_DIVIDE * MMCM_CLKOUT0_DIVIDE_F)
     .MMCM_DIVCLK_DIVIDE            (2),
-    .MMCM_CLKFBOUT_MULT_F          (16),
-    .MMCM_CLKOUT0_DIVIDE_F         (2),
+    .MMCM_CLKFBOUT_MULT_F          (18),
+    .MMCM_CLKOUT0_DIVIDE_F         (3),
     .MMCM_CLKOUT1_DIVIDE_F         (2),
     .MMCM_CLKOUT2_DIVIDE_F         (2),
     .MMCM_CLKOUT3_DIVIDE_F         (2),
@@ -290,7 +290,7 @@ sgd_top_bw #(
     .DATA_WIDTH_IN               (4),
     .MAX_DIMENSION_BITS          (18),
     .SLR0_ENGINE_NUM                                (0),
-    .SLR1_ENGINE_NUM                                (1),
+    .SLR1_ENGINE_NUM                                (2),
     .SLR2_ENGINE_NUM                                (0)
 
 )sgd_top_bw_inst (    

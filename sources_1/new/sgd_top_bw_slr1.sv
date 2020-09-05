@@ -473,10 +473,11 @@ wire  [`NUM_BITS_PER_BANK*32-1:0]  x_rd_data;
 
 
 //Compute the wr_counter to make sure ...
-ultraram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
+blockram_2port_reset #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
 				 .DEPTH_BIT_WIDTH (`DIS_X_BIT_DEPTH)
 ) inst_x (
 	.clock     ( clk             ),
+	.usr_rstn	(	~rst_n 			),
 	.data      ( x_wr_data    ),
 	.wraddress ( x_wr_addr    ),
 	.wren      ( x_wr_en      ),
@@ -656,10 +657,11 @@ end
 assign x_updated_rd_addr[i] = writing_x_to_host_memory_en_r? x_mem_rd_addr_r4 : x_batch_rd_addr[i];
 
 //Compute the wr_counter to make sure ...add reigster to any rd/wr ports. 
-blockram_2port #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
+blockram_2port_reset #(.DATA_WIDTH      (`NUM_BITS_PER_BANK*32),    
 				 .DEPTH_BIT_WIDTH (`DIS_X_BIT_DEPTH         )
 ) inst_x_updated (
 	.clock     ( clk                ),
+	.usr_rstn	(	~rst_n 			),
 	.data      ( x_updated_wr_data  ),
 	.wraddress ( x_updated_wr_addr  ),
 	.wren      ( x_updated_wr_en    ),

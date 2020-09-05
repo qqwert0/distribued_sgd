@@ -391,9 +391,9 @@ endinterface
 `define NUM_BITS_PER_BANK        `NUM_BITS_PER_CL/`NUM_OF_BANKS
 `define BIT_WIDTH_OF_BANK        9-`NUM_OF_BANKS_WIDTH
 `define BIT_TRI_WIDTH_OF_BANK    4
-`define ENGINE_NUM               1
-`define ENGINE_NUM_WIDTH         0
-`define ENGINE_NUM_TRI_WIDTH     0
+`define ENGINE_NUM               2
+`define ENGINE_NUM_WIDTH         1
+`define ENGINE_NUM_TRI_WIDTH     1
 `define B_DATA_CHANNEL           `ENGINE_NUM
 //////////////////////////End of Bank///////////////////////////////////
 

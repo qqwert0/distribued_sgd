@@ -18,7 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "sgd_defines.vh"
 
 module hbm_send_back(
     input wire                  hbm_clk,

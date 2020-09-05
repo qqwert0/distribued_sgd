@@ -18,7 +18,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-
+`include "sgd_defines.vh"
 
 module sgd_x_to_memory_read_data(
     input   wire                                   clk,

@@ -201,7 +201,8 @@ module hbm_write#(
     reg [31:0]                              wr_ops;
     reg [31:0]                              num_mem_ops_minus_1;
     reg                                     wr_data_done;
-    
+    reg [7:0]                               end_cnt;
+        
     always @(posedge hbm_clk) begin
         dimension_align                 <= (dimension[`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH:0] == 0)? dimension : (dimension[31:`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH+1] + 1) << (`BIT_WIDTH_OF_BANK + `ENGINE_NUM_WIDTH+1);
         dimension_minus                 <= dimension_align - `NUM_BITS_PER_BANK * `ENGINE_NUM;
@@ -584,12 +585,24 @@ module hbm_write#(
                 end
             end   
             W_DATA_END:begin
-                wnstate                     = WIDLE;
+                if(end_cnt[7])
+                    wnstate                 = WIDLE;
+                else
+                    wnstate                 = W_DATA_END;
                 hbm_write_done              = 1'b1;
             end
         endcase
     end                  
-                
+
+    always @(posedge hbm_clk)begin
+        if(~hbm_aresetn)
+            end_cnt                       <= 1'b0;
+        else if(wnstate == W_DATA_END)
+            end_cnt                       <= end_cnt + 1'b1;
+        else
+            end_cnt                       <= 1'b0;
+    end
+ 
 
 //////////////////////////////debug TH CNT//////////////////////////////////
     reg [31:0]          wr_sum_cnt,wr_addr_cnt,wr_data_cnt;

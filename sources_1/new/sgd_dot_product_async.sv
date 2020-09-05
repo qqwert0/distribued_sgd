@@ -342,7 +342,7 @@ always@(posedge clk) begin
             //This state indicates that "b" is loaded from memory.....
             BANK_CHECK_X_STATE:
             begin
-                if (x_credit_available)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
+                if (1)  //x_credit_available   x_wr_credit_counter != x_rd_credit_counter
                 begin
                     //if ( not_the_last_sample ) //sample_index != numSamples
                     x_rd_credit_counter   <= x_rd_credit_counter + 8'b1;
@@ -521,22 +521,22 @@ generate for( i = 0; i < `NUM_OF_BANKS; i = i + 1) begin: inst_bank
             5'h0d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 14);
             5'h0e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 15);
             5'h0f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 16);
-            // 5'h10: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 17);
-            // 5'h11: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 18);
-            // 5'h12: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 19);
-            // 5'h13: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 20);
-            // 5'h14: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 21);
-            // 5'h15: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 22);
-            // 5'h16: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 23);
-            // 5'h17: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 24);
-            // 5'h18: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 25);
-            // 5'h19: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 26);
-            // 5'h1a: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 27);
-            // 5'h1b: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 28);
-            // 5'h1c: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 29);
-            // 5'h1d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 30);
-            // 5'h1e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 31);
-            // 5'h1f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 32);
+            5'h10: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 17);
+            5'h11: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 18);
+            5'h12: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 19);
+            5'h13: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 20);
+            5'h14: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 21);
+            5'h15: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 22);
+            5'h16: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 23);
+            5'h17: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 24);
+            5'h18: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 25);
+            5'h19: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 26);
+            5'h1a: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 27);
+            5'h1b: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 28);
+            5'h1c: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 29);
+            5'h1d: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 30);
+            5'h1e: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 31);
+            5'h1f: add_tree_out_shift[i]          <= (add_tree_out_shift_wire[i] >>> 32);
         endcase 
         
         //add_tree_out_shift[i]          <= ( add_tree_out_shift_wire[i] >>> 3 ); //(d_numBits_index+5'b1)
